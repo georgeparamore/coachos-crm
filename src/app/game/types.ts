@@ -5,8 +5,8 @@ export const LANE_COUNT = 4;
 // Default keyboard bindings, one key per lane (0..LANE_COUNT-1).
 export const LANE_KEYS = ["d", "f", "j", "k"] as const;
 
-// Lane colors, Guitar-Hero-ish: green / red / yellow / blue.
-export const LANE_COLORS = ["#3f9142", "#e24b4a", "#ef9f27", "#2f7dd6"] as const;
+// Lane colors — cosmic glow palette: cyan / magenta / gold / violet.
+export const LANE_COLORS = ["#3aa0ff", "#ff4fa3", "#ffc23d", "#9d6bff"] as const;
 
 export type Note = {
   // Seconds from the start of the audio when the note should be struck.

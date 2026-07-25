@@ -33,7 +33,10 @@ const W_MISS = 0.16; // pending + this far past time = miss
 const POINTS = { perfect: 100, great: 70, good: 40, miss: 0 } as const;
 
 export type Judgment = "perfect" | "great" | "good" | "miss";
-export type EngineMode = "idle" | "play" | "edit";
+export type EngineMode = "idle" | "play" | "edit" | "finale";
+
+// How long the end-of-song supernova plays before results show.
+const FINALE_SECONDS = 5;
 
 export type Hud = {
   score: number;
@@ -74,15 +77,6 @@ function judgmentColor(j: Judgment): string {
   if (j === "great") return "#3f9142";
   if (j === "good") return "#2f7dd6";
   return "#e24b4a";
-}
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  const rr = Math.min(r, w / 2, h / 2);
-  ctx.moveTo(x + rr, y);
-  ctx.arcTo(x + w, y, x + w, y + h, rr);
-  ctx.arcTo(x + w, y + h, x, y + h, rr);
-  ctx.arcTo(x, y + h, x, y, rr);
-  ctx.arcTo(x, y, x + w, y, rr);
 }
 
 function hexA(hex: string, a: number): string {
@@ -126,12 +120,26 @@ export class GameEngine {
   private raf: number | null = null;
   private lastHud = 0;
 
+  // --- space visuals ---
+  private view = { w: 0, h: 0, laneW: 0, strikeY: 0 };
+  private bgStars: { x: number; y: number; r: number; ph: number; sp: number; depth: number }[] = [];
+  private starsSig = "";
+  private shooting: { x: number; y: number; vx: number; vy: number; life: number; len: number }[] = [];
+  private nextShoot = 0;
+  private particles: { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; r: number; float: boolean }[] = [];
+  private flashAt = -10; // wall-clock seconds of last supernova flare
+  private flashColor = "#ffffff";
+  private nextMilestone = 25;
+  private nowSec = 0;
+  private lastNow = 0;
+  private finaleStart = 0;
+
   constructor(cb: EngineCallbacks) {
     this.cb = cb;
     this.audio = typeof Audio !== "undefined" ? new Audio() : ({} as HTMLAudioElement);
     if (this.audio.addEventListener) {
       this.audio.addEventListener("ended", () => {
-        if (this.mode === "play") this.finishPlay();
+        if (this.mode === "play") this.beginFinale();
         else this.cb.onEnded();
       });
     }
@@ -261,6 +269,9 @@ export class GameEngine {
     this.laneFlash = new Array(LANE_COUNT).fill(-1);
     this.laneHeld = new Array(LANE_COUNT).fill(false);
     this.popups = [];
+    this.particles = [];
+    this.flashAt = -10;
+    this.nextMilestone = 25;
   }
 
   startPlay(chart: Chart): void {
@@ -296,8 +307,15 @@ export class GameEngine {
     this.raf = null;
   }
 
-  private finishPlay(): void {
+  // Song ended: detonate the star and let the debris drift before results.
+  private beginFinale(): void {
     if (this.audio.pause) this.audio.pause();
+    this.mode = "finale";
+    this.finaleStart = this.nowSec;
+    this.explode();
+  }
+
+  private finalizeResults(): void {
     const total = this.notes.length;
     const done = this.counts.perfect + this.counts.great + this.counts.good + this.counts.miss;
     const acc = done
@@ -408,6 +426,15 @@ export class GameEngine {
     this.changeHealth(HEALTH_HIT[j]);
     this.laneFlash[lane] = t;
     this.popups.push({ text: j.toUpperCase(), color: judgmentColor(j), born: t, lane });
+
+    // Feed the star: sparkle burst at the receptor.
+    this.burst(lane, LANE_COLORS[lane], j === "perfect" ? 14 : 8);
+
+    // Supernova flare on each combo milestone.
+    if (this.combo >= this.nextMilestone) {
+      this.nextMilestone += 25;
+      this.supernova(LANE_COLORS[lane]);
+    }
   }
 
   // --- loop ----------------------------------------------------------------
@@ -417,6 +444,10 @@ export class GameEngine {
   }
 
   private loop = () => {
+    const now = performance.now() / 1000;
+    const dt = this.lastNow ? Math.min(0.05, now - this.lastNow) : 0;
+    this.lastNow = now;
+    this.nowSec = now;
     const t = this.audio.currentTime ?? 0;
 
     if (this.mode === "play") {
@@ -432,11 +463,121 @@ export class GameEngine {
         }
       }
       this.emitHud(false);
+    } else if (this.mode === "finale") {
+      if (now - this.finaleStart > FINALE_SECONDS) {
+        this.finalizeResults();
+        return;
+      }
     }
 
+    this.updateAmbience(dt);
     this.render(t);
     this.raf = requestAnimationFrame(this.loop);
   };
+
+  // --- particles, shooting stars, supernovae --------------------------------
+
+  private capParticles() {
+    if (this.particles.length > 460) this.particles.splice(0, this.particles.length - 460);
+  }
+
+  // Sparkle burst at a lane receptor when a note is hit.
+  private burst(lane: number, color: string, n: number) {
+    const { laneW, strikeY } = this.view;
+    if (!laneW) return;
+    const cx = lane * laneW + laneW / 2;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 60 + Math.random() * 220;
+      this.particles.push({
+        x: cx, y: strikeY,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60,
+        life: 0.5 + Math.random() * 0.5, max: 1, color, r: 1.5 + Math.random() * 2.5, float: false,
+      });
+    }
+    this.capParticles();
+  }
+
+  // Mid-song combo flare from the star core.
+  private supernova(color: string) {
+    this.flashAt = this.nowSec;
+    this.flashColor = color;
+    const { w, strikeY } = this.view;
+    const cx = w / 2 || 0;
+    for (let i = 0; i < 44; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 120 + Math.random() * 260;
+      this.particles.push({
+        x: cx, y: strikeY,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 0.8 + Math.random() * 0.7, max: 1.5, color, r: 1.5 + Math.random() * 2.5, float: false,
+      });
+    }
+    this.capParticles();
+  }
+
+  // End-of-song detonation: the star bursts into colorful, floating debris.
+  private explode() {
+    const { w, strikeY } = this.view;
+    const cx = w / 2 || 0;
+    const palette = [...LANE_COLORS, "#ffffff", "#ffe9a8", "#7ef9ff"];
+    for (let i = 0; i < 220; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 40 + Math.random() * 340;
+      this.particles.push({
+        x: cx, y: strikeY,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 2.6 + Math.random() * 2.6, max: 5.2,
+        color: palette[(Math.random() * palette.length) | 0],
+        r: 1.5 + Math.random() * 3.5, float: true,
+      });
+    }
+    this.flashAt = this.nowSec;
+    this.flashColor = "#ffffff";
+    this.capParticles();
+  }
+
+  private updateAmbience(dt: number) {
+    const { w, h } = this.view;
+    if (!w) return;
+
+    // Shooting stars.
+    if (this.nowSec > this.nextShoot) {
+      this.nextShoot = this.nowSec + 1.4 + Math.random() * 3.2;
+      const fromLeft = Math.random() < 0.5;
+      const speed = 520 + Math.random() * 380;
+      const ang = (fromLeft ? 0.15 : Math.PI - 0.15) + (Math.random() - 0.5) * 0.25;
+      this.shooting.push({
+        x: fromLeft ? -40 : w + 40,
+        y: Math.random() * h * 0.5,
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed,
+        life: 1.6, len: 90 + Math.random() * 120,
+      });
+    }
+    for (const s of this.shooting) {
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.life -= dt;
+    }
+    this.shooting = this.shooting.filter((s) => s.life > 0 && s.x > -80 && s.x < w + 80);
+
+    // Particles.
+    for (const p of this.particles) {
+      if (p.float) {
+        p.vx *= 0.988;
+        p.vy *= 0.988;
+        p.vy += Math.sin(this.nowSec * 1.4 + p.x * 0.02) * 3 * dt; // gentle drift
+      } else {
+        p.vx *= 0.9;
+        p.vy = p.vy * 0.9 + 120 * dt; // fall away
+      }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+    }
+    this.particles = this.particles.filter((p) => p.life > 0);
+  }
 
   private emitHud(force: boolean) {
     const now = performance.now();
@@ -457,6 +598,26 @@ export class GameEngine {
 
   // --- rendering -----------------------------------------------------------
 
+  private initStars(w: number, h: number) {
+    const sig = `${w}x${h}`;
+    if (this.starsSig === sig && this.bgStars.length) return;
+    this.starsSig = sig;
+    const count = Math.min(240, Math.max(70, Math.round((w * h) / 6500)));
+    const stars = [];
+    for (let i = 0; i < count; i++) {
+      const depth = Math.random();
+      stars.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: 0.4 + depth * 1.7,
+        ph: Math.random() * Math.PI * 2,
+        sp: 0.5 + Math.random() * 2,
+        depth,
+      });
+    }
+    this.bgStars = stars;
+  }
+
   private render(t: number) {
     const canvas = this.canvas;
     if (!canvas) return;
@@ -464,92 +625,224 @@ export class GameEngine {
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const cssW = canvas.clientWidth;
-    const cssH = canvas.clientHeight;
-    if (canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr)) {
-      canvas.width = Math.round(cssW * dpr);
-      canvas.height = Math.round(cssH * dpr);
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const W = cssW;
-    const H = cssH;
     const laneW = W / LANE_COUNT;
     const strikeY = H - 96;
     const approach = this.chart.approachSeconds || 1.8;
     const pxPerSec = strikeY / approach;
     const isEdit = this.mode === "edit";
+    const isFinale = this.mode === "finale";
+    const now = this.nowSec;
+    const health = this.health;
+    this.view = { w: W, h: H, laneW, strikeY };
+    this.initStars(W, H);
 
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "#0e0e12";
+    // Deep-space backdrop.
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#05060f");
+    bg.addColorStop(0.55, "#0a0a18");
+    bg.addColorStop(1, "#0c0716");
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    for (let i = 0; i < LANE_COUNT; i++) {
-      const x = i * laneW;
-      ctx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)";
-      ctx.fillRect(x, 0, laneW, H);
-      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.globalCompositeOperation = "lighter";
+
+    // Nebula haze — breathes with the star's energy.
+    const neb = (cx: number, cy: number, rad: number, color: string, a: number) => {
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      g.addColorStop(0, hexA(color, a));
+      g.addColorStop(1, hexA(color, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+    };
+    const nebA = 0.05 + 0.05 * health;
+    neb(W * 0.25, H * 0.3, Math.max(W, H) * 0.5, "#3a2a7a", nebA);
+    neb(W * 0.8, H * 0.5, Math.max(W, H) * 0.45, "#0b5c7a", nebA);
+
+    // Twinkling starfield.
+    for (const s of this.bgStars) {
+      const tw = 0.35 + 0.65 * Math.abs(Math.sin(now * s.sp + s.ph));
+      ctx.fillStyle = hexA("#ffffff", tw * (0.35 + s.depth * 0.5));
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, H);
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Shooting stars.
+    for (const s of this.shooting) {
+      const a = Math.max(0, Math.min(1, s.life)) * 0.9;
+      const tx = s.x - (s.vx / Math.hypot(s.vx, s.vy)) * s.len;
+      const ty = s.y - (s.vy / Math.hypot(s.vx, s.vy)) * s.len;
+      const g = ctx.createLinearGradient(s.x, s.y, tx, ty);
+      g.addColorStop(0, hexA("#ffffff", a));
+      g.addColorStop(1, hexA("#7ec8ff", 0));
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(tx, ty);
       ctx.stroke();
     }
 
+    // Lane energy columns (hold / recent hit).
     for (let i = 0; i < LANE_COUNT; i++) {
       const since = t - this.laneFlash[i];
-      if ((since >= 0 && since < 0.14) || this.laneHeld[i]) {
-        const alpha = this.laneHeld[i] ? 0.12 : 0.28 * (1 - since / 0.14);
-        const grad = ctx.createLinearGradient(0, strikeY - 220, 0, strikeY);
+      if ((since >= 0 && since < 0.16) || this.laneHeld[i]) {
+        const alpha = this.laneHeld[i] ? 0.1 : 0.3 * (1 - since / 0.16);
+        const grad = ctx.createLinearGradient(0, strikeY - 260, 0, strikeY);
         grad.addColorStop(0, "rgba(0,0,0,0)");
         grad.addColorStop(1, hexA(LANE_COLORS[i], alpha));
         ctx.fillStyle = grad;
-        ctx.fillRect(i * laneW, strikeY - 220, laneW, 220);
+        ctx.fillRect(i * laneW, strikeY - 260, laneW, 260);
       }
     }
 
-    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    // Glowing-star drawing helper.
+    const drawStar = (x: number, y: number, r: number, color: string, intensity: number) => {
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 3.2);
+      glow.addColorStop(0, hexA(color, 0.9 * intensity));
+      glow.addColorStop(0.4, hexA(color, 0.35 * intensity));
+      glow.addColorStop(1, hexA(color, 0));
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      // bright core
+      ctx.fillStyle = hexA("#ffffff", 0.95 * intensity);
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = hexA(color, intensity);
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.85, 0, Math.PI * 2);
+      ctx.fill();
+      // 4-point sparkle
+      ctx.strokeStyle = hexA("#ffffff", 0.5 * intensity);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x - r * 2, y); ctx.lineTo(x + r * 2, y);
+      ctx.moveTo(x, y - r * 2); ctx.lineTo(x, y + r * 2);
+      ctx.stroke();
+    };
+
+    // The star core / horizon that the notes feed into.
+    const coreR = Math.min(W * 0.4, 140);
+    const finaleElapsed = isFinale ? now - this.finaleStart : 0;
+    const coreIntensity = isFinale ? 1 : 0.25 + 0.75 * health;
+    const pulse = 1 + 0.06 * Math.sin(now * 4);
+    const cg = ctx.createRadialGradient(W / 2, strikeY, 0, W / 2, strikeY, coreR * pulse * (isFinale ? 1.6 : 1));
+    cg.addColorStop(0, hexA("#ffffff", 0.5 * coreIntensity));
+    cg.addColorStop(0.35, hexA(isFinale ? "#ffd98a" : "#8f7bff", 0.32 * coreIntensity));
+    cg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = cg;
+    ctx.fillRect(0, strikeY - coreR * 2, W, coreR * 2 + H - strikeY);
+
+    // Horizon line.
+    const hg = ctx.createLinearGradient(0, 0, W, 0);
+    hg.addColorStop(0, "rgba(143,123,255,0)");
+    hg.addColorStop(0.5, hexA("#b9aaff", 0.5 * coreIntensity));
+    hg.addColorStop(1, "rgba(143,123,255,0)");
+    ctx.strokeStyle = hg;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, strikeY);
     ctx.lineTo(W, strikeY);
     ctx.stroke();
 
+    // Receptor rings.
     for (let i = 0; i < LANE_COUNT; i++) {
       const cx = i * laneW + laneW / 2;
+      const rr = Math.min(laneW, 96) / 2 - 6;
+      const held = this.laneHeld[i];
+      ctx.strokeStyle = hexA(LANE_COLORS[i], held ? 1 : 0.7);
+      ctx.lineWidth = held ? 4 : 2.5;
       ctx.beginPath();
-      ctx.arc(cx, strikeY, Math.min(laneW, 90) / 2 - 6, 0, Math.PI * 2);
-      ctx.strokeStyle = hexA(LANE_COLORS[i], 0.85);
-      ctx.lineWidth = 3;
+      ctx.arc(cx, strikeY, rr, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.fillStyle = "rgba(255,255,255,0.5)";
-      ctx.font = "600 14px ui-sans-serif, system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(LANE_KEYS[i].toUpperCase(), cx, strikeY);
+      if (held) drawStar(cx, strikeY, rr * 0.4, LANE_COLORS[i], 0.8);
     }
 
+    // Falling note-stars.
     const drawNote = (note: Note, faded: boolean) => {
       const y = strikeY - (note.time - t) * pxPerSec;
-      if (y < -40 || y > H + 40) return;
+      if (y < -60 || y > H + 60) return;
       const x = note.lane * laneW + laneW / 2;
-      const r = Math.min(laneW, 90) / 2 - 8;
-      ctx.beginPath();
-      roundRect(ctx, x - r, y - 12, r * 2, 24, 12);
-      ctx.fillStyle = faded ? hexA(LANE_COLORS[note.lane], 0.35) : LANE_COLORS[note.lane];
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.35)";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      const r = Math.min(laneW, 96) / 2 - 12;
+      drawStar(x, y, r, LANE_COLORS[note.lane], faded ? 0.28 : 1);
     };
-
     if (isEdit) {
       for (const n of this.chart.notes) drawNote(n, true);
       for (const n of this.recorded) drawNote(n, false);
-    } else {
+    } else if (!isFinale) {
       for (const n of this.notes) {
         if (n.state === "hit") continue;
         drawNote(n, n.state === "missed");
       }
+    }
+
+    // Particles (sparkles + supernova debris).
+    for (const p of this.particles) {
+      const a = Math.max(0, Math.min(1, p.life / p.max));
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3);
+      g.addColorStop(0, hexA(p.color, a));
+      g.addColorStop(1, hexA(p.color, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = hexA("#ffffff", a * 0.9);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Supernova flash rings.
+    const flashAge = now - this.flashAt;
+    if (flashAge >= 0 && flashAge < 0.7) {
+      const a = (1 - flashAge / 0.7) * 0.55;
+      const fg = ctx.createRadialGradient(W / 2, strikeY, 0, W / 2, strikeY, Math.max(W, H) * (0.3 + flashAge));
+      fg.addColorStop(0, hexA(this.flashColor, a));
+      fg.addColorStop(0.6, hexA(this.flashColor, a * 0.3));
+      fg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = fg;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Finale: expanding supernova shockwave from the collapsing core.
+    if (isFinale) {
+      const frac = finaleElapsed / FINALE_SECONDS;
+      const ringR = frac * Math.hypot(W, H) * 1.1;
+      const ringA = Math.max(0, 1 - frac) * 0.6;
+      const ring = ctx.createRadialGradient(W / 2, strikeY, ringR * 0.7, W / 2, strikeY, ringR);
+      ring.addColorStop(0, "rgba(0,0,0,0)");
+      ring.addColorStop(0.85, hexA("#ffd98a", ringA));
+      ring.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = ring;
+      ctx.fillRect(0, 0, W, H);
+      // early white-out flash
+      if (finaleElapsed < 0.5) {
+        ctx.fillStyle = hexA("#ffffff", (1 - finaleElapsed / 0.5) * 0.7);
+        ctx.fillRect(0, 0, W, H);
+      }
+    }
+
+    // Text overlays (normal blending).
+    ctx.globalCompositeOperation = "source-over";
+
+    for (let i = 0; i < LANE_COUNT; i++) {
+      const cx = i * laneW + laneW / 2;
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(LANE_KEYS[i].toUpperCase(), cx, strikeY);
     }
 
     this.popups = this.popups.filter((p) => t - p.born < 0.6);
@@ -560,8 +853,16 @@ export class GameEngine {
       ctx.fillStyle = p.color;
       ctx.font = "800 22px ui-sans-serif, system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(p.text, cx, strikeY - 60 - age * 40);
+      ctx.fillText(p.text, cx, strikeY - 70 - age * 40);
       ctx.globalAlpha = 1;
+    }
+
+    if (isFinale) {
+      const titleSize = Math.min(64, Math.max(28, W * 0.06));
+      ctx.fillStyle = hexA("#ffffff", Math.max(0, 1 - finaleElapsed / FINALE_SECONDS));
+      ctx.font = `800 ${titleSize}px ui-sans-serif, system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText("SUPER NOVA", W / 2, H * 0.35);
     }
   }
 }

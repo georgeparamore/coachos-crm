@@ -286,10 +286,11 @@ function Menu(props: {
   return (
     <div style={S.menu}>
       <div style={S.hero}>
-        <h1 style={S.title}>🎸 Rhythm Stage</h1>
+        <h1 style={S.title}>✦ SUPER NOVA</h1>
         <p style={S.sub}>
-          Chart your own track and play it Guitar-Hero style — notes fall down four lanes,
-          you hit <b>D F J K</b> (or tap) as they cross the line.
+          Feed a dying star to make it go supernova. Glowing stars stream down four lanes —
+          hit <b>D F J K</b> (or tap) on the beat to keep the star alive. Miss, and it
+          collapses and the track breaks up. Survive to the end for the blast.
         </p>
       </div>
 
@@ -366,18 +367,18 @@ function Menu(props: {
 
         <div style={S.card}>
           <div style={S.cardNum}>3</div>
-          <h3 style={S.cardH}>Play it</h3>
+          <h3 style={S.cardH}>Ignite the star</h3>
           <p style={S.cardP}>
             {chart.notes.length > 0
-              ? `Chart "${chart.title}" has ${chart.notes.length} notes.`
-              : "Chart is empty — record some notes in step 2 first."}
+              ? `"${chart.title}" — ${chart.notes.length} stars to hit. Take it to the supernova.`
+              : "Chart is empty — detect or record some notes in step 2 first."}
           </p>
           <button
             style={S.bigPlay}
             onClick={props.onPlay}
             disabled={!hasAudio || chart.notes.length === 0}
           >
-            ▶ Play chart
+            ✦ Launch
           </button>
         </div>
       </div>
@@ -431,11 +432,11 @@ function RockMeter({ health }: { health: number }) {
   const pct = Math.round(Math.max(0, Math.min(1, health)) * 100);
   const color = health > 0.55 ? "#3f9142" : health > 0.28 ? "#ef9f27" : "#e24b4a";
   return (
-    <div style={S.meterWrap} title="Miss the beats and the song falls apart">
+    <div style={S.meterWrap} title="Miss the beats and the star collapses">
       <div style={S.meterTrack}>
         <div style={{ ...S.meterFill, width: `${pct}%`, background: color }} />
       </div>
-      <div style={S.statLabel}>Song integrity</div>
+      <div style={S.statLabel}>Star energy</div>
     </div>
   );
 }
