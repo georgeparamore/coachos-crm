@@ -113,7 +113,7 @@
   overflow: hidden;
   text-align: left;
   transform: translate3d(0, 0, 0);
-  animation: float-window var(--float-dur, 30s) ease-in-out var(--float-delay, 0s) infinite alternate;
+  animation: float-window var(--float-dur, 24s) ease-in-out var(--float-delay, 0s) infinite;
   transition: transform 0.25s ease, box-shadow 0.3s ease, border-color 0.3s ease;
   will-change: transform;
 }
@@ -131,9 +131,16 @@
   transform: translateY(-6px) scale(1.035);
 }
 
+/* A slow, looping wander — each window drifts through several offsets and
+   tilts gently, so the field feels like it's floating freely in space. Per
+   window --fx / --fy / --rot amplitudes and --float-dur keep them desynced. */
 @keyframes float-window {
-  0% { transform: translate3d(0, 0, 0) rotate(-0.6deg); }
-  100% { transform: translate3d(var(--drift, 16px), -22px, 0) rotate(0.8deg); }
+  0% { transform: translate3d(0, 0, 0) rotate(calc(var(--rot, 1deg) * -1)); }
+  20% { transform: translate3d(var(--fx, 20px), calc(var(--fy, 22px) * -1), 0) rotate(var(--rot, 1deg)); }
+  40% { transform: translate3d(calc(var(--fx, 20px) * 0.25), calc(var(--fy, 22px) * -1.5), 0) rotate(calc(var(--rot, 1deg) * -0.6)); }
+  60% { transform: translate3d(calc(var(--fx, 20px) * -0.85), calc(var(--fy, 22px) * -0.7), 0) rotate(var(--rot, 1deg)); }
+  80% { transform: translate3d(calc(var(--fx, 20px) * -0.4), calc(var(--fy, 22px) * 0.35), 0) rotate(calc(var(--rot, 1deg) * -0.5)); }
+  100% { transform: translate3d(0, 0, 0) rotate(calc(var(--rot, 1deg) * -1)); }
 }
 
 .pw-titlebar {

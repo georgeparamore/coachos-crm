@@ -28,6 +28,7 @@ function useLayout() {
     return projects.map((p, i) => {
       const seedX = hashSeed(p.id + "x");
       const seedY = hashSeed(p.id + "y");
+      const seedR = hashSeed(p.id + "r");
       const col = i % cols;
       const row = Math.floor(i / cols);
       // Base cell position as a percentage, with gentle per-project jitter so
@@ -40,9 +41,14 @@ function useLayout() {
         left: Math.max(4, Math.min(72, left)),
         top: Math.max(8, Math.min(84, top)),
         width: size.w,
-        floatDur: size.dur + seedX * 8,
-        floatDelay: -seedY * 12,
-        drift: (seedX - 0.5) * 26,
+        // Each window wanders on its own slow, looping path. Per-project
+        // amplitudes / duration / phase keep them desynced so they drift
+        // freely rather than bobbing in lockstep.
+        floatDur: 20 + seedX * 12, // 20–32s
+        floatDelay: -seedY * 16,
+        floatX: 16 + seedX * 18, // px of horizontal wander
+        floatY: 18 + seedY * 16, // px of vertical wander
+        floatRot: (0.8 + seedR * 1.4).toFixed(2), // deg of tilt
       };
     });
   }, []);
@@ -82,7 +88,7 @@ function ProjectWindow({
   data: ReturnType<typeof useLayout>[number];
   onOpen: (p: Project) => void;
 }) {
-  const { project: p, left, top, width, floatDur, floatDelay, drift } = data;
+  const { project: p, left, top, width, floatDur, floatDelay, floatX, floatY, floatRot } = data;
   return (
     <button
       type="button"
@@ -95,7 +101,9 @@ function ProjectWindow({
         ["--accent" as string]: p.accent,
         ["--float-dur" as string]: `${floatDur}s`,
         ["--float-delay" as string]: `${floatDelay}s`,
-        ["--drift" as string]: `${drift}px`,
+        ["--fx" as string]: `${floatX}px`,
+        ["--fy" as string]: `${floatY}px`,
+        ["--rot" as string]: `${floatRot}deg`,
       }}
       aria-label={`Open ${p.name}: ${p.tagline}`}
     >
