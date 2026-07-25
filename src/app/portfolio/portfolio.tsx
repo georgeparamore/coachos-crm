@@ -16,9 +16,9 @@ function hashSeed(str: string) {
 }
 
 const SIZE_MAP = {
-  sm: { w: 210, dur: 26 },
-  md: { w: 250, dur: 32 },
-  lg: { w: 300, dur: 38 },
+  sm: { w: 248, dur: 26 },
+  md: { w: 292, dur: 32 },
+  lg: { w: 344, dur: 38 },
 } as const;
 
 /** Scatter windows across a loose grid so they don't overlap badly. */

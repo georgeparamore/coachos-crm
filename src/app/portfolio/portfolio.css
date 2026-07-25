@@ -128,7 +128,7 @@
   outline: none;
   z-index: 5;
   animation-play-state: paused;
-  transform: translateY(-6px) scale(1.035);
+  transform: translateY(-8px) scale(1.07);
 }
 
 /* A slow, looping wander — each window drifts through several offsets and

@@ -62,7 +62,7 @@ export const projects: Project[] = [
     ],
     tech: ["Next.js 16", "React 19", "TypeScript", "Supabase", "Stripe", "Tailwind"],
     shots: [],
-    links: [{ label: "Dashboard", href: "/dashboard" }],
+    links: [],
   },
   {
     id: "osrs",
@@ -82,12 +82,7 @@ export const projects: Project[] = [
     ],
     tech: ["Java", "RuneLite API", "Gradle", "HTML/CSS/JS", "RuneScape Wiki API"],
     shots: [],
-    links: [
-      { label: "Instant Replay", href: "https://github.com/georgeparamore/instant-replay" },
-      { label: "GE Trade Logger", href: "https://github.com/georgeparamore/ge-trade-logger" },
-      { label: "OSRS Tool Suite", href: "https://github.com/georgeparamore/osrs-planner-suite" },
-      { label: "All repos", href: "https://github.com/georgeparamore" },
-    ],
+    links: [],
   },
 
   // ───────────────────────────────────────────────────────────────────────
