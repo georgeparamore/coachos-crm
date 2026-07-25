@@ -185,6 +185,16 @@
   padding: 12px 12px 0;
 }
 
+.pw-shot {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .pw-tagline {
   display: block;
   padding: 10px 14px 2px;

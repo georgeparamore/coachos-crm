@@ -117,7 +117,12 @@ function ProjectWindow({
         <span className="pw-name">{p.name}</span>
       </span>
       <span className="pw-preview">
-        <Placeholder project={p} />
+        {p.shots.length > 0 ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="pw-shot" src={p.shots[0]} alt={`${p.name} preview`} />
+        ) : (
+          <Placeholder project={p} />
+        )}
       </span>
       <span className="pw-tagline">{p.tagline}</span>
       <span className="pw-hint">Click to open</span>

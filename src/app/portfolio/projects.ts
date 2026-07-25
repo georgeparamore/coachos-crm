@@ -81,7 +81,26 @@ export const projects: Project[] = [
       "OSRS Tool Suite — GE price tracker, skill-profit calculator, and farming / herblore / prayer / construction training planners",
     ],
     tech: ["Java", "RuneLite API", "Gradle", "HTML/CSS/JS", "RuneScape Wiki API"],
-    shots: [],
+    shots: ["/portfolio/osrs-suite-home.png", "/portfolio/osrs-prayer.png"],
+    links: [],
+  },
+  {
+    id: "discord-formatter",
+    name: "Discord Announcement Editor",
+    tagline: "Write and format Discord posts with a live preview",
+    accent: "#5865f2",
+    glyph: "💬",
+    size: "md",
+    description:
+      "A single-page, no-build editor for writing Discord announcements. Toolbar buttons cover every Discord markdown format, and a live preview mirrors how the message will actually render once you post it — so you can nail the formatting before it goes out.",
+    highlights: [
+      "Toolbar for all Discord formatting — bold, italic, underline, strikethrough, spoilers, inline & block code, quotes, headers and lists",
+      "ANSI color and highlight support for colored text (desktop/web)",
+      "Live preview styled like a real Discord message",
+      "Copy the raw markdown straight into Discord — no build step, no dependencies",
+    ],
+    tech: ["HTML/CSS/JS"],
+    shots: ["/portfolio/discord-formatter.png"],
     links: [],
   },
 
