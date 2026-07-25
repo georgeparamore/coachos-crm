@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GameEngine, Hud, Results } from "./engine";
 import { DEFAULT_DETECT } from "./detect";
-import { Chart, emptyChart, parseChart } from "./types";
+import { SUPER_NOVA_AUDIO_URL, SUPER_NOVA_CHART } from "./super-nova-chart";
+import { Chart, parseChart } from "./types";
 
 type Mode = "menu" | "play" | "edit";
 
@@ -19,13 +20,13 @@ function download(filename: string, text: string) {
 
 export default function RhythmGame() {
   const [mode, setMode] = useState<Mode>("menu");
-  const [chart, setChart] = useState<Chart>(emptyChart);
-  const [audioName, setAudioName] = useState("");
-  const [hasAudio, setHasAudio] = useState(false);
+  const [chart, setChart] = useState<Chart>(SUPER_NOVA_CHART);
+  const [audioName, setAudioName] = useState(SUPER_NOVA_CHART.audioName);
+  const [hasAudio, setHasAudio] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [results, setResults] = useState<Results | null>(null);
   const [status, setStatus] = useState("");
-  const [hud, setHud] = useState<Hud>({ score: 0, combo: 0, accuracy: 100, recorded: 0, health: 0.6 });
+  const [hud, setHud] = useState<Hud>({ score: 0, combo: 0, accuracy: 100, recorded: 0, health: 0.7 });
   const [sensitivity, setSensitivity] = useState(DEFAULT_DETECT.sensitivity);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -49,6 +50,8 @@ export default function RhythmGame() {
       onStatus: setStatus,
     });
     engineRef.current = engine;
+    // Pre-load the baked-in Super Nova track so it's ready to launch.
+    engine.loadAudioUrl(SUPER_NOVA_AUDIO_URL);
     return () => {
       engine.destroy();
       engineRef.current = null;
@@ -312,12 +315,13 @@ function Menu(props: {
       <div style={S.cards}>
         <div style={S.card}>
           <div style={S.cardNum}>1</div>
-          <h3 style={S.cardH}>Load your song</h3>
+          <h3 style={S.cardH}>Song loaded</h3>
           <p style={S.cardP}>
-            Pick the audio file for your release. It stays on your device — nothing is uploaded.
+            <b>Super Nova</b> is built in and ready to play. Want to try a different track?
+            Load any audio file — it stays on your device.
           </p>
           <label style={S.fileBtn}>
-            {hasAudio ? `♪ ${audioName}` : "Choose audio (MP3/WAV)…"}
+            {`♪ ${audioName}`}
             <input
               type="file"
               accept="audio/*"
@@ -331,8 +335,8 @@ function Menu(props: {
           <div style={S.cardNum}>2</div>
           <h3 style={S.cardH}>Chart the notes</h3>
           <p style={S.cardP}>
-            Let me detect the beats automatically — or open the editor to tap them in
-            and fine-tune by hand.
+            Super Nova comes with a choreographed chart — sparse verses, dense drops.
+            Re-detect for a different feel, or open the editor to fine-tune.
           </p>
           <div style={S.cardBtns}>
             <button style={S.primaryBtn} onClick={props.onAutoChart} disabled={!hasAudio || props.analyzing}>

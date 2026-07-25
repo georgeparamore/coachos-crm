@@ -10,19 +10,21 @@ import {
   Note,
   emptyChart,
 } from "./types";
-import { DetectOptions, analyzeFile } from "./detect";
+import { DetectOptions, analyzeArrayBuffer } from "./detect";
 
 // Health ("rock meter") mechanics: hitting beats keeps the song intact,
 // missing them breaks it up.
-const HEALTH_START = 0.6;
+const HEALTH_START = 0.7;
 const HEALTH_HIT: Record<"perfect" | "great" | "good" | "miss", number> = {
-  perfect: 0.05,
-  great: 0.04,
-  good: 0.025,
+  perfect: 0.06,
+  great: 0.05,
+  good: 0.035,
   miss: 0,
 };
-const HEALTH_MISS = 0.13;
-const HEALTH_OVERSTRUM = 0.05; // hitting a lane with no note there
+// Softer than before: a single miss dips the star, but only a real streak
+// drains it enough to break the track up.
+const HEALTH_MISS = 0.07;
+const HEALTH_OVERSTRUM = 0.025; // hitting a lane with no note there
 
 // Timing windows in seconds (absolute distance from the note's target time).
 const W_PERFECT = 0.045;
@@ -93,6 +95,7 @@ export class GameEngine {
   private canvas: HTMLCanvasElement | null = null;
   private objectUrl: string | null = null;
   private file: File | null = null;
+  private srcUrl: string | null = null;
 
   // Web Audio graph: source → lowpass → healthGain → duckGain → destination.
   // healthGain/lowpass follow the rock meter (slow); duckGain is the sharp
@@ -163,16 +166,35 @@ export class GameEngine {
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.objectUrl = URL.createObjectURL(file);
     this.file = file;
+    this.srcUrl = this.objectUrl;
     this.audio.crossOrigin = "anonymous";
     this.audio.src = this.objectUrl;
     this.audio.load();
     return file.name;
   }
 
-  // Decode + beat-detect the loaded file into notes. Runs client-side.
+  // Load bundled/hosted audio by URL (e.g. the baked-in Super Nova track).
+  loadAudioUrl(url: string): void {
+    if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
+    this.objectUrl = null;
+    this.file = null;
+    this.srcUrl = url;
+    this.audio.crossOrigin = "anonymous";
+    this.audio.src = url;
+    this.audio.load();
+  }
+
+  // Decode + beat-detect the current audio into notes. Runs client-side.
   async analyze(opts: DetectOptions): Promise<Note[]> {
-    if (!this.file) throw new Error("No audio loaded");
-    const { notes } = await analyzeFile(this.file, opts);
+    let buf: ArrayBuffer;
+    if (this.file) {
+      buf = await this.file.arrayBuffer();
+    } else if (this.srcUrl) {
+      buf = await (await fetch(this.srcUrl)).arrayBuffer();
+    } else {
+      throw new Error("No audio loaded");
+    }
+    const { notes } = await analyzeArrayBuffer(buf, opts);
     return notes;
   }
 
@@ -227,15 +249,18 @@ export class GameEngine {
     this.lowpass.frequency.setTargetAtTime(cutoff, t, 0.08);
   }
 
-  // Sharp momentary dropout on a single miss — you hear the beat cut out.
+  // Momentary dip on a single miss — you hear it stumble, but it's not a full
+  // cut. How deep the dip goes scales with how low the star's energy is, so a
+  // clean run barely flinches while a collapsing one really breaks up.
   private duck() {
     if (!this.actx || !this.duckGain) return;
     const t = this.actx.currentTime;
     const g = this.duckGain.gain;
+    const depth = 0.55 - 0.45 * this.health; // healthy→dip to ~0.55, failing→~0.1
     g.cancelScheduledValues(t);
     g.setValueAtTime(g.value, t);
-    g.linearRampToValueAtTime(0.05, t + 0.02);
-    g.linearRampToValueAtTime(1, t + 0.16);
+    g.linearRampToValueAtTime(Math.max(0.08, depth), t + 0.02);
+    g.linearRampToValueAtTime(1, t + 0.13);
   }
 
   private changeHealth(delta: number) {

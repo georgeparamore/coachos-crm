@@ -119,9 +119,8 @@ export function detectNotesFromPCM(mono: Float32Array, sampleRate: number, opts:
   return notes;
 }
 
-// Browser: decode an audio File into an AudioBuffer.
-export async function decodeFile(file: File): Promise<AudioBuffer> {
-  const arrayBuffer = await file.arrayBuffer();
+// Browser: decode encoded audio bytes into an AudioBuffer.
+export async function decodeArrayBuffer(arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
   const Ctx: typeof AudioContext =
     window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   const ctx = new Ctx();
@@ -133,14 +132,22 @@ export async function decodeFile(file: File): Promise<AudioBuffer> {
 }
 
 // Browser: decode + detect. Returns notes plus the detected duration.
-export async function analyzeFile(
-  file: File,
+export async function analyzeArrayBuffer(
+  arrayBuffer: ArrayBuffer,
   opts: DetectOptions,
 ): Promise<{ notes: Note[]; duration: number }> {
-  const buffer = await decodeFile(file);
+  const buffer = await decodeArrayBuffer(arrayBuffer);
   const channels: Float32Array[] = [];
   for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
   const mono = toMono(channels, buffer.length);
   const notes = detectNotesFromPCM(mono, buffer.sampleRate, opts);
   return { notes, duration: buffer.duration };
+}
+
+// Browser: decode + detect straight from a File.
+export async function analyzeFile(
+  file: File,
+  opts: DetectOptions,
+): Promise<{ notes: Note[]; duration: number }> {
+  return analyzeArrayBuffer(await file.arrayBuffer(), opts);
 }
