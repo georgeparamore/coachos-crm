@@ -130,6 +130,7 @@ export class GameEngine {
   private shooting: { x: number; y: number; vx: number; vy: number; life: number; len: number }[] = [];
   private nextShoot = 0;
   private particles: { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; r: number; float: boolean }[] = [];
+  private shockwaves: { x: number; y: number; born: number; color: string; max: number }[] = [];
   private flashAt = -10; // wall-clock seconds of last supernova flare
   private flashColor = "#ffffff";
   private nextMilestone = 25;
@@ -295,6 +296,7 @@ export class GameEngine {
     this.laneHeld = new Array(LANE_COUNT).fill(false);
     this.popups = [];
     this.particles = [];
+    this.shockwaves = [];
     this.flashAt = -10;
     this.nextMilestone = 25;
   }
@@ -506,20 +508,26 @@ export class GameEngine {
     if (this.particles.length > 460) this.particles.splice(0, this.particles.length - 460);
   }
 
-  // Sparkle burst at a lane receptor when a note is hit.
+  // Dust explosion at a lane receptor when a note is hit on the mark: a burst
+  // of colored + white embers plus an expanding shockwave ring.
   private burst(lane: number, color: string, n: number) {
     const { laneW, strikeY } = this.view;
     if (!laneW) return;
     const cx = lane * laneW + laneW / 2;
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
-      const sp = 60 + Math.random() * 220;
+      const sp = 90 + Math.random() * 300;
+      const white = Math.random() < 0.35;
       this.particles.push({
         x: cx, y: strikeY,
-        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60,
-        life: 0.5 + Math.random() * 0.5, max: 1, color, r: 1.5 + Math.random() * 2.5, float: false,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40,
+        life: 0.35 + Math.random() * 0.55, max: 0.9,
+        color: white ? "#ffffff" : color,
+        r: 1 + Math.random() * (white ? 1.8 : 3),
+        float: false,
       });
     }
+    this.shockwaves.push({ x: cx, y: strikeY, born: this.nowSec, color, max: n >= 12 ? 70 : 46 });
     this.capParticles();
   }
 
@@ -729,31 +737,54 @@ export class GameEngine {
       }
     }
 
-    // Glowing-star drawing helper.
-    const drawStar = (x: number, y: number, r: number, color: string, intensity: number) => {
-      const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 3.2);
-      glow.addColorStop(0, hexA(color, 0.9 * intensity));
-      glow.addColorStop(0.4, hexA(color, 0.35 * intensity));
+    // Glowing star / ball-of-gas drawing helper. `seed` (0..1) desyncs each
+    // star's pulse and drifting corona so they don't all breathe in lockstep.
+    const drawStar = (x: number, y: number, r: number, color: string, intensity: number, seed = 0) => {
+      const phase = seed * Math.PI * 2;
+      const pulse = 0.88 + 0.12 * Math.sin(now * 2.6 + phase);
+      const rr = r * pulse;
+
+      // Soft outer halo.
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, rr * 3.6);
+      glow.addColorStop(0, hexA(color, 0.55 * intensity));
+      glow.addColorStop(0.45, hexA(color, 0.22 * intensity));
       glow.addColorStop(1, hexA(color, 0));
       ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(x, y, r * 3.2, 0, Math.PI * 2);
+      ctx.arc(x, y, rr * 3.6, 0, Math.PI * 2);
       ctx.fill();
-      // bright core
-      ctx.fillStyle = hexA("#ffffff", 0.95 * intensity);
+
+      // Drifting gas-cloud turbulence: three soft lobes slowly orbiting the core.
+      for (let i = 0; i < 3; i++) {
+        const ang = now * 0.5 + phase + i * ((Math.PI * 2) / 3);
+        const off = rr * 0.32;
+        const bx = x + Math.cos(ang) * off, by = y + Math.sin(ang) * off;
+        const bg = ctx.createRadialGradient(bx, by, 0, bx, by, rr * 1.4);
+        bg.addColorStop(0, hexA(color, 0.38 * intensity));
+        bg.addColorStop(1, hexA(color, 0));
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        ctx.arc(bx, by, rr * 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // White-hot core.
+      const core = ctx.createRadialGradient(x, y, 0, x, y, rr * 0.85);
+      core.addColorStop(0, hexA("#ffffff", 0.98 * intensity));
+      core.addColorStop(0.55, hexA(color, 0.92 * intensity));
+      core.addColorStop(1, hexA(color, 0));
+      ctx.fillStyle = core;
       ctx.beginPath();
-      ctx.arc(x, y, r * 0.55, 0, Math.PI * 2);
+      ctx.arc(x, y, rr * 0.85, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = hexA(color, intensity);
-      ctx.beginPath();
-      ctx.arc(x, y, r * 0.85, 0, Math.PI * 2);
-      ctx.fill();
-      // 4-point sparkle
+
+      // Sparkle cross with a gentle length pulse.
+      const rayLen = rr * (2 + 0.35 * Math.sin(now * 2.2 + phase));
       ctx.strokeStyle = hexA("#ffffff", 0.5 * intensity);
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x - r * 2, y); ctx.lineTo(x + r * 2, y);
-      ctx.moveTo(x, y - r * 2); ctx.lineTo(x, y + r * 2);
+      ctx.moveTo(x - rayLen, y); ctx.lineTo(x + rayLen, y);
+      ctx.moveTo(x, y - rayLen); ctx.lineTo(x, y + rayLen);
       ctx.stroke();
     };
 
@@ -791,7 +822,7 @@ export class GameEngine {
       ctx.beginPath();
       ctx.arc(cx, strikeY, rr, 0, Math.PI * 2);
       ctx.stroke();
-      if (held) drawStar(cx, strikeY, rr * 0.4, LANE_COLORS[i], 0.8);
+      if (held) drawStar(cx, strikeY, rr * 0.4, LANE_COLORS[i], 0.8, i * 0.27);
     }
 
     // Falling note-stars.
@@ -800,7 +831,8 @@ export class GameEngine {
       if (y < -60 || y > H + 60) return;
       const x = note.lane * laneW + laneW / 2;
       const r = Math.min(laneW, 96) / 2 - 12;
-      drawStar(x, y, r, LANE_COLORS[note.lane], faded ? 0.28 : 1);
+      const seed = (note.time * 0.61803398875) % 1; // deterministic per-note phase
+      drawStar(x, y, r, LANE_COLORS[note.lane], faded ? 0.28 : 1, seed);
     };
     if (isEdit) {
       for (const n of this.chart.notes) drawNote(n, true);
@@ -826,6 +858,25 @@ export class GameEngine {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r * 0.6, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    // Hit shockwave rings — a fast expanding ring at the moment a note lands.
+    this.shockwaves = this.shockwaves.filter((s) => now - s.born < 0.4);
+    for (const s of this.shockwaves) {
+      const age = now - s.born;
+      const p = age / 0.4;
+      const rad = s.max * p;
+      const a = (1 - p) * 0.7;
+      ctx.strokeStyle = hexA(s.color, a);
+      ctx.lineWidth = 3 * (1 - p) + 0.5;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, rad, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = hexA("#ffffff", a * 0.5);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, rad * 0.7, 0, Math.PI * 2);
+      ctx.stroke();
     }
 
     // Supernova flash rings.
