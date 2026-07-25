@@ -5,6 +5,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/signup",
   "/auth",
+  "/portfolio", // public marketing/portfolio site — no account required
   "/sign", // client-facing contract signing links — no account required
   "/api/stripe/webhook", // verified via Stripe signature, not a user session
   "/api/contracts", // public contract fetch/sign, gated by an unguessable token
