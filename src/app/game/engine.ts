@@ -10,6 +10,19 @@ import {
   Note,
   emptyChart,
 } from "./types";
+import { DetectOptions, analyzeFile } from "./detect";
+
+// Health ("rock meter") mechanics: hitting beats keeps the song intact,
+// missing them breaks it up.
+const HEALTH_START = 0.6;
+const HEALTH_HIT: Record<"perfect" | "great" | "good" | "miss", number> = {
+  perfect: 0.05,
+  great: 0.04,
+  good: 0.025,
+  miss: 0,
+};
+const HEALTH_MISS = 0.13;
+const HEALTH_OVERSTRUM = 0.05; // hitting a lane with no note there
 
 // Timing windows in seconds (absolute distance from the note's target time).
 const W_PERFECT = 0.045;
@@ -27,6 +40,7 @@ export type Hud = {
   combo: number;
   accuracy: number;
   recorded: number;
+  health: number; // 0..1, drives how "intact" the song sounds
 };
 
 export type Results = {
@@ -84,6 +98,17 @@ export class GameEngine {
   private audio: HTMLAudioElement;
   private canvas: HTMLCanvasElement | null = null;
   private objectUrl: string | null = null;
+  private file: File | null = null;
+
+  // Web Audio graph: source → lowpass → healthGain → duckGain → destination.
+  // healthGain/lowpass follow the rock meter (slow); duckGain is the sharp
+  // per-miss dropout.
+  private actx: AudioContext | null = null;
+  private srcNode: MediaElementAudioSourceNode | null = null;
+  private lowpass: BiquadFilterNode | null = null;
+  private healthGain: GainNode | null = null;
+  private duckGain: GainNode | null = null;
+  private health = HEALTH_START;
 
   private mode: EngineMode = "idle";
   private chart: Chart = emptyChart();
@@ -121,6 +146,7 @@ export class GameEngine {
     this.raf = null;
     if (this.audio.pause) this.audio.pause();
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
+    if (this.actx) void this.actx.close();
   }
 
   // --- audio ---------------------------------------------------------------
@@ -128,9 +154,85 @@ export class GameEngine {
   loadAudio(file: File): string {
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.objectUrl = URL.createObjectURL(file);
+    this.file = file;
+    this.audio.crossOrigin = "anonymous";
     this.audio.src = this.objectUrl;
     this.audio.load();
     return file.name;
+  }
+
+  // Decode + beat-detect the loaded file into notes. Runs client-side.
+  async analyze(opts: DetectOptions): Promise<Note[]> {
+    if (!this.file) throw new Error("No audio loaded");
+    const { notes } = await analyzeFile(this.file, opts);
+    return notes;
+  }
+
+  // --- Web Audio graph (miss = the song breaks) ----------------------------
+
+  private ensureGraph() {
+    if (this.actx || typeof window === "undefined") return;
+    const Ctx: typeof AudioContext =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      const actx = new Ctx();
+      const src = actx.createMediaElementSource(this.audio);
+      const lowpass = actx.createBiquadFilter();
+      lowpass.type = "lowpass";
+      lowpass.frequency.value = 20000;
+      const healthGain = actx.createGain();
+      healthGain.gain.value = 1;
+      const duckGain = actx.createGain();
+      duckGain.gain.value = 1;
+      src.connect(lowpass);
+      lowpass.connect(healthGain);
+      healthGain.connect(duckGain);
+      duckGain.connect(actx.destination);
+      this.actx = actx;
+      this.srcNode = src;
+      this.lowpass = lowpass;
+      this.healthGain = healthGain;
+      this.duckGain = duckGain;
+    } catch {
+      // createMediaElementSource throws if called twice on one element; ignore.
+    }
+  }
+
+  private resumeGraph() {
+    this.ensureGraph();
+    if (this.actx && this.actx.state === "suspended") void this.actx.resume();
+  }
+
+  // Push the current health level to the slow audio params: low health means
+  // quieter and muffled, so the track audibly falls apart.
+  private applyHealthAudio() {
+    if (!this.actx || !this.healthGain || !this.lowpass) return;
+    const t = this.actx.currentTime;
+    const h = this.health;
+    // Volume: full down near zero health, full up when healthy.
+    const vol = 0.15 + 0.85 * Math.max(0, Math.min(1, h));
+    this.healthGain.gain.setTargetAtTime(vol, t, 0.08);
+    // Muffle: open filter when healthy, closed (~450 Hz) when failing.
+    const cutoff = 450 + 19550 * Math.pow(Math.max(0, Math.min(1, h)), 1.5);
+    this.lowpass.frequency.setTargetAtTime(cutoff, t, 0.08);
+  }
+
+  // Sharp momentary dropout on a single miss — you hear the beat cut out.
+  private duck() {
+    if (!this.actx || !this.duckGain) return;
+    const t = this.actx.currentTime;
+    const g = this.duckGain.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(0.05, t + 0.02);
+    g.linearRampToValueAtTime(1, t + 0.16);
+  }
+
+  private changeHealth(delta: number) {
+    this.health = Math.max(0, Math.min(1, this.health + delta));
+    this.applyHealthAudio();
   }
 
   get isPaused(): boolean {
@@ -140,6 +242,7 @@ export class GameEngine {
   togglePlay(): void {
     if (!this.audio.play) return;
     if (this.audio.paused) {
+      this.resumeGraph();
       this.audio.play().catch(() => this.cb.onStatus("Tap the board once, then press play."));
     } else {
       this.audio.pause();
@@ -163,6 +266,10 @@ export class GameEngine {
   startPlay(chart: Chart): void {
     this.resetRuntime(chart);
     this.mode = "play";
+    this.health = HEALTH_START;
+    this.resumeGraph();
+    this.applyHealthAudio();
+    if (this.duckGain && this.actx) this.duckGain.gain.setValueAtTime(1, this.actx.currentTime);
     this.audio.currentTime = 0;
     this.emitHud(true);
     this.audio.play?.().catch(() => this.cb.onStatus("Tap the board once, then press play."));
@@ -173,6 +280,10 @@ export class GameEngine {
     this.resetRuntime(chart);
     this.recorded = [];
     this.mode = "edit";
+    // No fail mechanic while charting — keep the track clean.
+    this.health = 1;
+    this.resumeGraph();
+    this.applyHealthAudio();
     this.audio.currentTime = 0;
     this.emitHud(true);
     this.ensureLoop();
@@ -278,9 +389,14 @@ export class GameEngine {
         best = n;
       }
     }
-    if (!best) return;
-    const j = judge(bestDelta);
-    if (!j) return;
+    const j = best ? judge(bestDelta) : null;
+    if (!best || !j) {
+      // Overstrum: pressed a lane with no note to hit — small break.
+      this.combo = 0;
+      this.changeHealth(-HEALTH_OVERSTRUM);
+      this.duck();
+      return;
+    }
 
     best.state = "hit";
     best.judgment = j;
@@ -289,6 +405,7 @@ export class GameEngine {
     this.maxCombo = Math.max(this.maxCombo, this.combo);
     const mult = 1 + Math.min(this.combo, 100) / 100;
     this.score += Math.round(POINTS[j] * mult);
+    this.changeHealth(HEALTH_HIT[j]);
     this.laneFlash[lane] = t;
     this.popups.push({ text: j.toUpperCase(), color: judgmentColor(j), born: t, lane });
   }
@@ -309,6 +426,8 @@ export class GameEngine {
           n.judgment = "miss";
           this.counts.miss += 1;
           this.combo = 0;
+          this.changeHealth(-HEALTH_MISS);
+          this.duck();
           this.popups.push({ text: "MISS", color: judgmentColor("miss"), born: t, lane: n.lane });
         }
       }
@@ -332,6 +451,7 @@ export class GameEngine {
       combo: this.combo,
       accuracy: Math.round(acc * 1000) / 10,
       recorded: this.recorded.length,
+      health: this.health,
     });
   }
 

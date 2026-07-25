@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GameEngine, Hud, Results } from "./engine";
+import { DEFAULT_DETECT } from "./detect";
 import { Chart, emptyChart, parseChart } from "./types";
 
 type Mode = "menu" | "play" | "edit";
@@ -24,7 +25,9 @@ export default function RhythmGame() {
   const [playing, setPlaying] = useState(false);
   const [results, setResults] = useState<Results | null>(null);
   const [status, setStatus] = useState("");
-  const [hud, setHud] = useState<Hud>({ score: 0, combo: 0, accuracy: 100, recorded: 0 });
+  const [hud, setHud] = useState<Hud>({ score: 0, combo: 0, accuracy: 100, recorded: 0, health: 0.6 });
+  const [sensitivity, setSensitivity] = useState(DEFAULT_DETECT.sensitivity);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const engineRef = useRef<GameEngine | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -94,6 +97,30 @@ export default function RhythmGame() {
     }));
     setStatus(`Loaded audio: ${name}`);
   }, []);
+
+  const autoChart = useCallback(async () => {
+    const eng = engineRef.current;
+    if (!eng) return;
+    if (!hasAudio) {
+      setStatus("Load your song first, then let me detect the beats.");
+      return;
+    }
+    setAnalyzing(true);
+    setStatus("Listening to the track and working out the beats…");
+    try {
+      const notes = await eng.analyze({ sensitivity, minGap: DEFAULT_DETECT.minGap });
+      setChart((c) => ({ ...c, notes, audioName }));
+      setStatus(
+        notes.length
+          ? `Detected ${notes.length} beats. Play it, or open the editor to fine-tune.`
+          : "Couldn't find clear beats — try nudging sensitivity up.",
+      );
+    } catch (err) {
+      setStatus(`Beat detection failed: ${(err as Error).message}`);
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [hasAudio, sensitivity, audioName]);
 
   const loadChartFile = useCallback((file: File) => {
     const reader = new FileReader();
@@ -185,6 +212,10 @@ export default function RhythmGame() {
           onPlay={startPlay}
           onEdit={startEdit}
           onExport={exportChart}
+          onAutoChart={autoChart}
+          analyzing={analyzing}
+          sensitivity={sensitivity}
+          setSensitivity={setSensitivity}
           results={results}
           status={status}
         />
@@ -206,6 +237,7 @@ export default function RhythmGame() {
           </div>
           {mode === "play" ? (
             <div style={S.hudStats}>
+              <RockMeter health={hud.health} />
               <Stat label="Score" value={hud.score.toLocaleString()} />
               <Stat label="Combo" value={`${hud.combo}x`} />
               <Stat label="Accuracy" value={`${hud.accuracy}%`} />
@@ -242,6 +274,10 @@ function Menu(props: {
   onPlay: () => void;
   onEdit: () => void;
   onExport: () => void;
+  onAutoChart: () => void;
+  analyzing: boolean;
+  sensitivity: number;
+  setSensitivity: (n: number) => void;
   results: Results | null;
   status: string;
 }) {
@@ -294,11 +330,26 @@ function Menu(props: {
           <div style={S.cardNum}>2</div>
           <h3 style={S.cardH}>Chart the notes</h3>
           <p style={S.cardP}>
-            Play the track and tap the lane keys in time to record notes. Save, then export
-            the chart as JSON to reuse later.
+            Let me detect the beats automatically — or open the editor to tap them in
+            and fine-tune by hand.
           </p>
           <div style={S.cardBtns}>
-            <button style={S.primaryBtn} onClick={props.onEdit} disabled={!hasAudio}>
+            <button style={S.primaryBtn} onClick={props.onAutoChart} disabled={!hasAudio || props.analyzing}>
+              {props.analyzing ? "Analyzing…" : "✨ Auto-detect beats"}
+            </button>
+            <label style={{ ...S.fieldLabel, marginTop: 4 }}>
+              Density — {props.sensitivity <= 3 ? "sparse" : props.sensitivity >= 8 ? "busy" : "medium"}
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={props.sensitivity}
+                onChange={(e) => props.setSensitivity(Number(e.target.value))}
+                style={{ width: "100%", marginTop: 4 }}
+              />
+            </label>
+            <button style={S.linkBtn} onClick={props.onEdit} disabled={!hasAudio}>
               Open chart editor
             </button>
             <label style={S.linkBtn}>
@@ -376,6 +427,19 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function RockMeter({ health }: { health: number }) {
+  const pct = Math.round(Math.max(0, Math.min(1, health)) * 100);
+  const color = health > 0.55 ? "#3f9142" : health > 0.28 ? "#ef9f27" : "#e24b4a";
+  return (
+    <div style={S.meterWrap} title="Miss the beats and the song falls apart">
+      <div style={S.meterTrack}>
+        <div style={{ ...S.meterFill, width: `${pct}%`, background: color }} />
+      </div>
+      <div style={S.statLabel}>Song integrity</div>
+    </div>
+  );
+}
+
 const S: Record<string, React.CSSProperties> = {
   root: {
     minHeight: "100dvh",
@@ -414,6 +478,9 @@ const S: Record<string, React.CSSProperties> = {
   hudLeft: { display: "flex", gap: 8 },
   hudStats: { display: "flex", gap: 22, alignItems: "center" },
   editHint: { fontSize: 12, color: "#a9a7a0" },
+  meterWrap: { minWidth: 120, textAlign: "center" },
+  meterTrack: { height: 10, borderRadius: 6, background: "rgba(255,255,255,0.12)", overflow: "hidden", marginBottom: 3 },
+  meterFill: { height: "100%", borderRadius: 6, transition: "width 0.12s linear, background 0.2s linear" },
   kbd: { fontSize: 11, padding: "1px 5px", borderRadius: 4, background: "rgba(255,255,255,0.12)", marginLeft: 4 },
   canvas: { flex: 1, width: "100%", touchAction: "none", display: "block" },
   editBar: { display: "flex", gap: 10, padding: "12px 16px", justifyContent: "center", flexWrap: "wrap" },
