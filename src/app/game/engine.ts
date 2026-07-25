@@ -32,7 +32,8 @@ const W_GREAT = 0.09;
 const W_GOOD = 0.14;
 const W_MISS = 0.16; // pending + this far past time = miss
 
-const POINTS = { perfect: 100, great: 70, good: 40, miss: 0 } as const;
+// Perfects are worth noticeably more than Greats/Goods to reward precision.
+const POINTS = { perfect: 100, great: 60, good: 25, miss: 0 } as const;
 
 export type Judgment = "perfect" | "great" | "good" | "miss";
 export type EngineMode = "idle" | "play" | "edit" | "finale";
@@ -449,10 +450,11 @@ export class GameEngine {
     this.combo += 1;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
     const mult = 1 + Math.min(this.combo, 100) / 100;
-    this.score += Math.round(POINTS[j] * mult);
+    const gained = Math.round(POINTS[j] * mult);
+    this.score += gained;
     this.changeHealth(HEALTH_HIT[j]);
     this.laneFlash[lane] = t;
-    this.popups.push({ text: j.toUpperCase(), color: judgmentColor(j), born: t, lane });
+    this.popups.push({ text: `${j.toUpperCase()} +${gained}`, color: judgmentColor(j), born: t, lane });
 
     // Feed the star: sparkle burst at the receptor.
     this.burst(lane, LANE_COLORS[lane], j === "perfect" ? 14 : 8);
@@ -927,7 +929,7 @@ export class GameEngine {
       const cx = p.lane * laneW + laneW / 2;
       ctx.globalAlpha = Math.max(0, 1 - age / 0.6);
       ctx.fillStyle = p.color;
-      ctx.font = "800 22px ui-sans-serif, system-ui, sans-serif";
+      ctx.font = "800 15px ui-sans-serif, system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(p.text, cx, strikeY - 70 - age * 40);
       ctx.globalAlpha = 1;
@@ -935,10 +937,15 @@ export class GameEngine {
 
     if (isFinale) {
       const titleSize = Math.min(64, Math.max(28, W * 0.06));
-      ctx.fillStyle = hexA("#ffffff", Math.max(0, 1 - finaleElapsed / FINALE_SECONDS));
+      const fade = Math.max(0, 1 - finaleElapsed / FINALE_SECONDS);
+      ctx.fillStyle = hexA("#ffffff", fade);
       ctx.font = `800 ${titleSize}px ui-sans-serif, system-ui, sans-serif`;
       ctx.textAlign = "center";
       ctx.fillText("SUPER NOVA", W / 2, H * 0.35);
+      const songLabel = this.chart.artist ? `${this.chart.artist} — ${this.chart.title}` : this.chart.title;
+      ctx.fillStyle = hexA("#ffd98a", fade * 0.85);
+      ctx.font = "600 16px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText(songLabel, W / 2, H * 0.35 + titleSize * 0.62);
     }
   }
 }

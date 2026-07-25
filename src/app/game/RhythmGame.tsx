@@ -151,6 +151,14 @@ export default function RhythmGame() {
     eng.startPlay(chart);
   }, [chart, hasAudio]);
 
+  const resetPlay = useCallback(() => {
+    const eng = engineRef.current;
+    if (!eng) return;
+    setResults(null);
+    setPlaying(true);
+    eng.startPlay(chart);
+  }, [chart]);
+
   const startEdit = useCallback(() => {
     const eng = engineRef.current;
     if (!eng) return;
@@ -234,6 +242,9 @@ export default function RhythmGame() {
             <button style={S.ghostBtn} onClick={mode === "play" ? quitPlay : exitEdit}>
               ← {mode === "play" ? "Quit" : "Done"}
             </button>
+            {mode === "play" && (
+              <button style={S.ghostBtn} onClick={resetPlay}>⟲ Reset</button>
+            )}
             <button style={S.ghostBtn} onClick={togglePlay}>
               {playing ? "⏸ Pause" : "▶ Play"} <span style={S.kbd}>Space</span>
             </button>
@@ -290,6 +301,9 @@ function Menu(props: {
     <div style={S.menu}>
       <div style={S.hero}>
         <h1 style={S.title}>✦ SUPER NOVA</h1>
+        {(chart.artist || chart.title) && (
+          <p style={S.songLabel}>{chart.artist ? `${chart.artist} — ${chart.title}` : chart.title}</p>
+        )}
         <p style={S.sub}>
           Feed a dying star to make it go supernova. Glowing stars stream down four lanes —
           hit <b>D F J K</b> (or tap) on the beat to keep the star alive. Miss, and it
@@ -299,14 +313,18 @@ function Menu(props: {
 
       {results && (
         <div style={S.results}>
-          <div style={S.resultsTitle}>Last run</div>
+          <div style={S.resultsTitle}>
+            {chart.artist ? `${chart.artist} — ${chart.title}` : chart.title} · Last run
+          </div>
           <div style={S.resultGrid}>
             <Stat label="Score" value={results.score.toLocaleString()} />
             <Stat label="Accuracy" value={`${results.accuracy}%`} />
             <Stat label="Max combo" value={`${results.maxCombo}x`} />
-            <Stat label="Perfect" value={String(results.counts.perfect)} />
-            <Stat label="Great" value={String(results.counts.great)} />
-            <Stat label="Good" value={String(results.counts.good)} />
+          </div>
+          <div style={S.judgmentGrid}>
+            <Stat label="Perfect (100 pts)" value={String(results.counts.perfect)} />
+            <Stat label="Great (60 pts)" value={String(results.counts.great)} />
+            <Stat label="Good (25 pts)" value={String(results.counts.good)} />
             <Stat label="Miss" value={String(results.counts.miss)} />
           </div>
         </div>
@@ -456,6 +474,7 @@ const S: Record<string, React.CSSProperties> = {
   hero: { textAlign: "center", marginBottom: 28 },
   title: { fontSize: 40, fontWeight: 800, margin: "0 0 8px", letterSpacing: -0.5 },
   sub: { color: "#a9a7a0", fontSize: 16, maxWidth: 560, margin: "0 auto", lineHeight: 1.5 },
+  songLabel: { color: "#ffd98a", fontSize: 14, fontWeight: 700, letterSpacing: 0.5, margin: "0 0 10px" },
   cards: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16, marginBottom: 24 },
   card: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 20, position: "relative" },
   cardNum: { position: "absolute", top: -12, left: 16, width: 26, height: 26, borderRadius: "50%", background: "#7f77dd", color: "#fff", fontWeight: 800, display: "grid", placeItems: "center", fontSize: 14 },
@@ -474,7 +493,8 @@ const S: Record<string, React.CSSProperties> = {
   status: { marginTop: 18, padding: "10px 14px", borderRadius: 10, background: "rgba(127,119,221,0.12)", border: "1px solid rgba(127,119,221,0.3)", color: "#cecbf6", fontSize: 13, textAlign: "center" },
   results: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: 18, marginBottom: 24 },
   resultsTitle: { fontSize: 13, color: "#a9a7a0", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 },
-  resultGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(90px,1fr))", gap: 12 },
+  resultGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(90px,1fr))", gap: 12, marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid rgba(255,255,255,0.08)" },
+  judgmentGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 12 },
   stat: { textAlign: "center" },
   statValue: { fontSize: 22, fontWeight: 800, lineHeight: 1.1 },
   statLabel: { fontSize: 11, color: "#a9a7a0", textTransform: "uppercase", letterSpacing: 0.6, marginTop: 3 },
