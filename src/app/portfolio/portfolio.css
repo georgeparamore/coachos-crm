@@ -90,7 +90,7 @@
   position: relative;
   z-index: 2;
   width: 100%;
-  min-height: 145vh;
+  min-height: var(--field-min, 145vh);
 }
 
 .proj-window {
@@ -279,8 +279,9 @@
   position: fixed;
   inset: 0;
   z-index: 50;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 20px;
   background: rgba(4, 4, 12, 0.68);
   backdrop-filter: blur(8px);
@@ -288,7 +289,7 @@
   animation: fade-in 0.2s ease;
 }
 
-.modal {
+.pf-modal {
   width: min(920px, 100%);
   max-height: 88vh;
   display: flex;
@@ -329,7 +330,7 @@
 
 .modal-body {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: minmax(0, 300px) 1fr;
   align-items: stretch;
   gap: 0;
   overflow: auto;
@@ -510,5 +511,5 @@
 @media (prefers-reduced-motion: reduce) {
   .proj-window,
   .nebula { animation: none !important; }
-  .modal, .modal-backdrop { animation: none !important; }
+  .pf-modal, .modal-backdrop { animation: none !important; }
 }

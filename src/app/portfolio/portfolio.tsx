@@ -144,7 +144,7 @@ function ProjectModal({
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
       <div
-        className="modal"
+        className="pf-modal"
         style={{ ["--accent" as string]: project.accent }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -274,7 +274,16 @@ export default function Portfolio() {
         <p className="intro-text">{OWNER.intro}</p>
       </header>
 
-      <section className="window-field" aria-label="Projects">
+      <section
+        className="window-field"
+        aria-label="Projects"
+        style={{
+          // Height adapts to the number of rows so the field isn't sparse
+          // with few projects. Routed through a CSS var so the mobile
+          // stacked-layout media query can still override it.
+          ["--field-min" as string]: `${Math.ceil(projects.length / 3) * 46 + 24}vh`,
+        }}
+      >
         {layout.map((d) => (
           <ProjectWindow key={d.project.id} data={d} onOpen={open} />
         ))}
