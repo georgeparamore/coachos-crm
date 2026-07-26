@@ -44,12 +44,18 @@ const HEALTH_DROP_MULT = 1.3;
 // How close to the hold's end time counts as "held it out".
 const HOLD_END_TOLERANCE = 0.05;
 
-// Star power: charge the meter to full, press Space to pop it — a big
-// visual flare and a score multiplier for a short window, then it unloads
-// back down to the normal baseline.
+// Star power: a dedicated charge meter, separate from song-integrity health,
+// so misses on the way to a charge only cost a little rather than wiping out
+// health-draining progress. Charge is deliberately slow — a flawless
+// full-song clear banks enough for about three pops, so it stays a rare
+// payoff rather than something you trigger every other note.
 const STAR_POWER_READY_AT = 0.999;
 const STAR_POWER_DURATION = 7; // seconds — kept short on purpose
 const STAR_POWER_MULT = 2;
+const POWER_PER_HIT: Record<Judgment, number> = { perfect: 0.006, great: 0.0045, good: 0.0025, miss: 0 };
+const POWER_MISS_DRAIN = 0.008; // gentle — a couple of misses barely dent it
+const POWER_DROP_DRAIN = 0.012; // a dropped hold costs a little more
+const POWER_HOLD_BONUS = 0.02; // per completed hold, x HOLD_DUAL_MULT if dual
 
 export type Judgment = "perfect" | "great" | "good" | "miss";
 export type EngineMode = "idle" | "play" | "edit" | "finale";
@@ -145,6 +151,10 @@ export class GameEngine {
   private isStarPower = false;
   private starPowerStart = 0;
   private starPowerReady = false;
+  // Independent of `health` — this is purely the star-power charge (0..1).
+  private power = 0;
+  // Stars pulling into the core during star power (the "black hole" effect).
+  private vortex: { angle: number; radius: number; speed: number; color: string }[] = [];
 
   private score = 0;
   private combo = 0;
@@ -301,19 +311,60 @@ export class GameEngine {
   private changeHealth(delta: number) {
     this.health = Math.max(0, Math.min(1, this.health + delta));
     this.applyHealthAudio();
-    // Ready-state tracks the meter directly while it's not already popped —
-    // dips below full (e.g. from a miss) revoke readiness until it refills.
-    if (!this.isStarPower) this.starPowerReady = this.health >= STAR_POWER_READY_AT;
+  }
+
+  // Star-power charge is independent of health — hits build it slowly,
+  // misses only dent it a little. Gated off while the power is already
+  // active so the bar doesn't fight with its own timed drain.
+  private changePower(delta: number) {
+    if (this.isStarPower) return;
+    this.power = Math.max(0, Math.min(1, this.power + delta));
+    this.starPowerReady = this.power >= STAR_POWER_READY_AT;
   }
 
   // Pop the charged star-power meter: a big flare, a score multiplier, and a
-  // timed drain back down to the normal baseline. No-op if not charged.
+  // timed drain back down to empty. No-op if not charged.
   activateStarPower(): void {
     if (this.mode !== "play" || this.isStarPower || !this.starPowerReady) return;
     this.isStarPower = true;
     this.starPowerReady = false;
     this.starPowerStart = this.nowSec;
-    this.explode();
+    this.power = 1;
+    this.starPowerBurst();
+  }
+
+  // A grander, more colorful burst than a mid-song combo flare — this is the
+  // headline moment, so it goes bigger: more debris, brighter flash, and a
+  // few shooting stars converging in immediately for drama.
+  private starPowerBurst() {
+    this.flashAt = this.nowSec;
+    this.flashColor = "#ffffff";
+    const { w, h, strikeY } = this.view;
+    const cx = w / 2 || 0;
+    const pal = ["#7ef9ff", "#ffe9a8", "#ff9ad6", "#ffffff", "#9d6bff"];
+    for (let i = 0; i < 260; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 80 + Math.random() * 420;
+      this.particles.push({
+        x: cx, y: strikeY,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 1 + Math.random() * 1.2, max: 2.2,
+        color: pal[(Math.random() * pal.length) | 0],
+        r: 1.5 + Math.random() * 4, float: true,
+      });
+    }
+    for (let i = 0; i < 4; i++) {
+      const fromLeft = Math.random() < 0.5;
+      const speed = 700 + Math.random() * 400;
+      const ang = (fromLeft ? 0.1 : Math.PI - 0.1) + (Math.random() - 0.5) * 0.3;
+      this.shooting.push({
+        x: fromLeft ? -40 : w + 40,
+        y: Math.random() * (h || 400) * 0.6,
+        vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+        life: 1.2, len: 130 + Math.random() * 160,
+      });
+    }
+    this.capParticles();
   }
 
   get isPaused(): boolean {
@@ -349,6 +400,8 @@ export class GameEngine {
     this.holdActive = [];
     this.isStarPower = false;
     this.starPowerReady = false;
+    this.power = 0;
+    this.vortex = [];
   }
 
   startPlay(chart: Chart): void {
@@ -478,6 +531,7 @@ export class GameEngine {
     const gained = Math.round(POINTS[j] * mult);
     this.score += gained;
     this.changeHealth(HEALTH_HIT[j]);
+    this.changePower(POWER_PER_HIT[j]);
     this.laneFlash[primaryLane] = t;
     this.popups.push({ text: `${j.toUpperCase()} +${gained}`, color: judgmentColor(j), born: t, lane: primaryLane });
     this.burst(primaryLane, LANE_COLORS[primaryLane], j === "perfect" ? 14 : 8);
@@ -569,6 +623,7 @@ export class GameEngine {
           this.counts.miss += 1;
           this.combo = 0;
           this.changeHealth(-HEALTH_MISS);
+          this.changePower(-POWER_MISS_DRAIN);
           this.duck();
           this.popups.push({ text: "MISS", color: judgmentColor("miss"), born: t, lane: n.lane });
         }
@@ -585,6 +640,7 @@ export class GameEngine {
           this.counts.miss += 1;
           this.combo = 0;
           this.changeHealth(-HEALTH_MISS * HEALTH_DROP_MULT);
+          this.changePower(-POWER_DROP_DRAIN);
           this.duck();
           this.popups.push({ text: "DROPPED", color: judgmentColor("miss"), born: t, lane: n.lane });
         } else if (t >= endTime - HOLD_END_TOLERANCE) {
@@ -592,6 +648,7 @@ export class GameEngine {
           const mult = this.isStarPower ? STAR_POWER_MULT : 1;
           const bonus = Math.round(HOLD_BONUS_PER_SEC * (n.holdDur ?? 0) * (n.lane2 !== undefined ? HOLD_DUAL_MULT : 1) * mult);
           this.score += bonus;
+          this.changePower(POWER_HOLD_BONUS * (n.lane2 !== undefined ? HOLD_DUAL_MULT : 1));
           this.laneFlash[n.lane] = t;
           if (n.lane2 !== undefined) this.laneFlash[n.lane2] = t;
           this.popups.push({ text: `HOLD +${bonus}`, color: "#ffd34d", born: t, lane: n.lane });
@@ -601,18 +658,15 @@ export class GameEngine {
       }
       this.holdActive = this.holdActive.filter((n) => n.state === "holding");
 
-      // Star power: drains on a fixed timer back to the normal baseline,
-      // independent of hits/misses during the window.
+      // Star power's own charge drains on a fixed timer back to empty —
+      // health is untouched, they're fully independent meters now.
       if (this.isStarPower) {
         const elapsed = now - this.starPowerStart;
         if (elapsed >= STAR_POWER_DURATION) {
           this.isStarPower = false;
-          this.health = HEALTH_START;
-          this.applyHealthAudio();
+          this.power = 0;
         } else {
-          const frac = elapsed / STAR_POWER_DURATION;
-          this.health = 1 - frac * (1 - HEALTH_START);
-          this.applyHealthAudio();
+          this.power = Math.max(0, 1 - elapsed / STAR_POWER_DURATION);
         }
       }
 
@@ -701,11 +755,14 @@ export class GameEngine {
     const { w, h } = this.view;
     if (!w) return;
 
-    // Shooting stars.
+    const poweredNow = this.mode === "play" && this.isStarPower;
+
+    // Shooting stars — a flurry of them during star power instead of the
+    // usual occasional streak.
     if (this.nowSec > this.nextShoot) {
-      this.nextShoot = this.nowSec + 1.4 + Math.random() * 3.2;
+      this.nextShoot = this.nowSec + (poweredNow ? 0.2 + Math.random() * 0.4 : 1.4 + Math.random() * 3.2);
       const fromLeft = Math.random() < 0.5;
-      const speed = 520 + Math.random() * 380;
+      const speed = (poweredNow ? 700 : 520) + Math.random() * 380;
       const ang = (fromLeft ? 0.15 : Math.PI - 0.15) + (Math.random() - 0.5) * 0.25;
       this.shooting.push({
         x: fromLeft ? -40 : w + 40,
@@ -722,23 +779,46 @@ export class GameEngine {
     }
     this.shooting = this.shooting.filter((s) => s.life > 0 && s.x > -80 && s.x < w + 80);
 
-    // Star power: a steady drift of sparkles around the core while it's active.
-    if (this.mode === "play" && this.isStarPower && Math.random() < 0.6) {
+    if (poweredNow) {
       const { strikeY } = this.view;
       const cx = w / 2;
-      const a = Math.random() * Math.PI * 2;
-      const r = 40 + Math.random() * 90;
-      this.particles.push({
-        x: cx + Math.cos(a) * r,
-        y: strikeY + Math.sin(a) * r,
-        vx: Math.cos(a) * 22,
-        vy: Math.sin(a) * 22 - 12,
-        life: 0.6 + Math.random() * 0.6,
-        max: 1.2,
-        color: Math.random() < 0.5 ? "#7ef9ff" : "#ffe9a8",
-        r: 1 + Math.random() * 2,
-        float: true,
-      });
+
+      // A steady drift of sparkles around the core.
+      if (Math.random() < 0.6) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 40 + Math.random() * 90;
+        this.particles.push({
+          x: cx + Math.cos(a) * r,
+          y: strikeY + Math.sin(a) * r,
+          vx: Math.cos(a) * 22,
+          vy: Math.sin(a) * 22 - 12,
+          life: 0.6 + Math.random() * 0.6,
+          max: 1.2,
+          color: Math.random() < 0.5 ? "#7ef9ff" : "#ffe9a8",
+          r: 1 + Math.random() * 2,
+          float: true,
+        });
+      }
+
+      // Black-hole infall: stars spawn out at the edges and get pulled into
+      // the core, accelerating as they fall in — "at the speed of light."
+      if (Math.random() < 0.7) {
+        const pal = ["#7ef9ff", "#ffe9a8", "#ff9ad6", "#ffffff", "#9d6bff"];
+        this.vortex.push({
+          angle: Math.random() * Math.PI * 2,
+          radius: Math.max(w, h) * (0.55 + Math.random() * 0.35),
+          speed: 60 + Math.random() * 60,
+          color: pal[(Math.random() * pal.length) | 0],
+        });
+      }
+      for (const v of this.vortex) {
+        v.speed *= 1 + dt * 2.2; // accelerates as it falls in
+        v.radius -= v.speed * dt;
+      }
+      this.vortex = this.vortex.filter((v) => v.radius > 6);
+      if (this.vortex.length > 150) this.vortex.splice(0, this.vortex.length - 150);
+    } else if (this.vortex.length) {
+      this.vortex = [];
     }
 
     // Particles.
@@ -951,19 +1031,68 @@ export class GameEngine {
     const coreR = Math.min(W * 0.4, 140);
     const finaleElapsed = isFinale ? now - this.finaleStart : 0;
     const coreIntensity = isFinale ? 1 : 0.25 + 0.75 * health;
-    const pulse = 1 + 0.06 * Math.sin(now * 4);
-    const cg = ctx.createRadialGradient(W / 2, strikeY, 0, W / 2, strikeY, coreR * pulse * (isFinale ? 1.6 : 1));
-    cg.addColorStop(0, hexA("#ffffff", 0.5 * coreIntensity));
-    cg.addColorStop(0.35, hexA(isFinale ? "#ffd98a" : "#8f7bff", 0.32 * coreIntensity));
-    cg.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = cg;
-    ctx.fillRect(0, strikeY - coreR * 2, W, coreR * 2 + H - strikeY);
+    const powered = this.mode === "play" && this.isStarPower;
 
-    // Horizon line.
+    if (powered) {
+      // A black hole devouring the light around it: a dark event horizon,
+      // a bright shifting-hue rim, and tilted accretion rings spinning at
+      // different speeds — the "galaxy pulling stars in" moment.
+      const cx = W / 2, cy = strikeY;
+      const hue = (now * 70) % 360;
+      const prevOp = ctx.globalCompositeOperation;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "#04030a";
+      ctx.beginPath();
+      ctx.arc(cx, cy, coreR * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = prevOp;
+
+      const rim = ctx.createRadialGradient(cx, cy, coreR * 0.4, cx, cy, coreR * 0.78);
+      rim.addColorStop(0, "rgba(0,0,0,0)");
+      rim.addColorStop(0.6, `hsla(${hue}, 95%, 65%, 0.9)`);
+      rim.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = rim;
+      ctx.beginPath();
+      ctx.arc(cx, cy, coreR * 0.78, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let i = 0; i < 3; i++) {
+        const rot = now * (0.6 + i * 0.25) + i * 2.1;
+        const rx = coreR * (1.0 + i * 0.45);
+        const ry = rx * 0.32;
+        const ringHue = (hue + i * 70) % 360;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rot);
+        ctx.strokeStyle = `hsla(${ringHue}, 90%, 65%, ${0.5 - i * 0.12})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    } else {
+      const pulse = 1 + 0.06 * Math.sin(now * 4);
+      const cg = ctx.createRadialGradient(W / 2, strikeY, 0, W / 2, strikeY, coreR * pulse * (isFinale ? 1.6 : 1));
+      cg.addColorStop(0, hexA("#ffffff", 0.5 * coreIntensity));
+      cg.addColorStop(0.35, hexA(isFinale ? "#ffd98a" : "#8f7bff", 0.32 * coreIntensity));
+      cg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = cg;
+      ctx.fillRect(0, strikeY - coreR * 2, W, coreR * 2 + H - strikeY);
+    }
+
+    // Horizon line — shifts through the star-power palette while active.
     const hg = ctx.createLinearGradient(0, 0, W, 0);
-    hg.addColorStop(0, "rgba(143,123,255,0)");
-    hg.addColorStop(0.5, hexA("#b9aaff", 0.5 * coreIntensity));
-    hg.addColorStop(1, "rgba(143,123,255,0)");
+    if (powered) {
+      const hue = (now * 90) % 360;
+      hg.addColorStop(0, "rgba(0,0,0,0)");
+      hg.addColorStop(0.5, `hsla(${hue}, 90%, 70%, 0.9)`);
+      hg.addColorStop(1, "rgba(0,0,0,0)");
+    } else {
+      hg.addColorStop(0, "rgba(143,123,255,0)");
+      hg.addColorStop(0.5, hexA("#b9aaff", 0.5 * coreIntensity));
+      hg.addColorStop(1, "rgba(143,123,255,0)");
+    }
     ctx.strokeStyle = hg;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -971,11 +1100,45 @@ export class GameEngine {
     ctx.lineTo(W, strikeY);
     ctx.stroke();
 
-    // Receptor rings.
+    // Vortex particles: stars streaking inward and vanishing into the core.
+    for (const v of this.vortex) {
+      const x = W / 2 + Math.cos(v.angle) * v.radius;
+      const y = strikeY + Math.sin(v.angle) * v.radius * 0.4;
+      const trail = Math.min(60, v.speed * 3);
+      const tx = W / 2 + Math.cos(v.angle) * (v.radius + trail);
+      const ty = strikeY + Math.sin(v.angle) * (v.radius + trail) * 0.4;
+      const g = ctx.createLinearGradient(tx, ty, x, y);
+      g.addColorStop(0, hexA(v.color, 0));
+      g.addColorStop(1, hexA(v.color, 0.9));
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+
+    // Receptor rings — an ambient aura builds as the star-power meter
+    // charges, then pulses through the palette once it's active.
     for (let i = 0; i < LANE_COUNT; i++) {
       const cx = i * laneW + laneW / 2;
       const rr = Math.min(laneW, 96) / 2 - 6;
       const held = this.laneHeld[i];
+
+      if (this.mode === "play") {
+        const glowA = powered ? 0.55 + 0.2 * Math.sin(now * 6 + i) : Math.max(0, this.power - 0.5) * 0.7;
+        if (glowA > 0.02) {
+          const glowHue = powered ? (now * 140 + i * 40) % 360 : 195;
+          const rg = ctx.createRadialGradient(cx, strikeY, 0, cx, strikeY, rr * 2.4);
+          rg.addColorStop(0, `hsla(${glowHue}, 90%, 65%, ${glowA})`);
+          rg.addColorStop(1, `hsla(${glowHue}, 90%, 65%, 0)`);
+          ctx.fillStyle = rg;
+          ctx.beginPath();
+          ctx.arc(cx, strikeY, rr * 2.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
       ctx.strokeStyle = hexA(LANE_COLORS[i], held ? 1 : 0.7);
       ctx.lineWidth = held ? 4 : 2.5;
       ctx.beginPath();
@@ -1143,6 +1306,50 @@ export class GameEngine {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(LANE_KEYS[i].toUpperCase(), cx, strikeY);
+    }
+
+    // Star-power charge bar, right at the strike line where the action is —
+    // easy to catch out of the corner of your eye without leaving the notes.
+    if (this.mode === "play") {
+      const barW = Math.min(360, W * 0.5);
+      const barX = W / 2 - barW / 2;
+      const barY = strikeY + 46;
+      const barH = 7;
+      ctx.fillStyle = "rgba(255,255,255,0.1)";
+      ctx.fillRect(barX, barY, barW, barH);
+      const fillW = barW * Math.max(0, Math.min(1, this.power));
+      if (this.isStarPower) {
+        const hue = (now * 90) % 360;
+        const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+        grad.addColorStop(0, `hsl(${hue}, 90%, 65%)`);
+        grad.addColorStop(0.5, `hsl(${(hue + 80) % 360}, 90%, 65%)`);
+        grad.addColorStop(1, `hsl(${(hue + 160) % 360}, 90%, 65%)`);
+        ctx.fillStyle = grad;
+        ctx.shadowColor = `hsl(${hue}, 90%, 65%)`;
+        ctx.shadowBlur = 18;
+      } else if (this.starPowerReady) {
+        ctx.fillStyle = "#3ad6ff";
+        ctx.shadowColor = "#3ad6ff";
+        ctx.shadowBlur = 14;
+      } else {
+        ctx.fillStyle = "#8f7bff";
+        ctx.shadowBlur = 0;
+      }
+      if (fillW > 0.5) ctx.fillRect(barX, barY, fillW, barH);
+      ctx.shadowBlur = 0;
+
+      if (this.isStarPower) {
+        const remain = Math.max(0, STAR_POWER_DURATION - (now - this.starPowerStart));
+        ctx.fillStyle = `hsl(${(now * 140) % 360}, 90%, 70%)`;
+        ctx.font = "800 14px ui-sans-serif, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`★ STAR POWER  ${remain.toFixed(1)}s`, W / 2, barY - 14);
+      } else if (this.starPowerReady) {
+        ctx.fillStyle = "#3ad6ff";
+        ctx.font = "700 13px ui-sans-serif, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("⚡ STAR POWER READY — SPACE", W / 2, barY - 14);
+      }
     }
 
     this.popups = this.popups.filter((p) => t - p.born < 0.6);
