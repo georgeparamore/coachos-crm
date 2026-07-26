@@ -50,7 +50,7 @@ const HOLD_END_TOLERANCE = 0.05;
 // full-song clear banks enough for about three pops, so it stays a rare
 // payoff rather than something you trigger every other note.
 const STAR_POWER_READY_AT = 0.999;
-const STAR_POWER_DURATION = 7; // seconds — kept short on purpose
+const STAR_POWER_DURATION = 12; // seconds
 const STAR_POWER_MULT = 2;
 const POWER_PER_HIT: Record<Judgment, number> = { perfect: 0.006, great: 0.0045, good: 0.0025, miss: 0 };
 const POWER_MISS_DRAIN = 0.008; // gentle — a couple of misses barely dent it
