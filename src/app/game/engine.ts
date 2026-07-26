@@ -318,6 +318,9 @@ export class GameEngine {
   // active so the bar doesn't fight with its own timed drain.
   private changePower(delta: number) {
     if (this.isStarPower) return;
+    // Once fully charged, it's locked in — misses can't drain it back down.
+    // The only way to spend it is to actually activate it.
+    if (this.starPowerReady && delta < 0) return;
     this.power = Math.max(0, Math.min(1, this.power + delta));
     this.starPowerReady = this.power >= STAR_POWER_READY_AT;
   }
