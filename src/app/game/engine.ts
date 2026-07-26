@@ -35,6 +35,22 @@ const W_MISS = 0.16; // pending + this far past time = miss
 // Perfects are worth noticeably more than Greats/Goods to reward precision.
 const POINTS = { perfect: 100, great: 60, good: 25, miss: 0 } as const;
 
+// Hold ("comet") notes: extra points per second held, doubled for a
+// dual-lane combo hold since it's harder to sustain two keys at once.
+const HOLD_BONUS_PER_SEC = 40;
+const HOLD_DUAL_MULT = 1.5;
+// A dropped hold (released early) breaks the track harder than a plain miss.
+const HEALTH_DROP_MULT = 1.3;
+// How close to the hold's end time counts as "held it out".
+const HOLD_END_TOLERANCE = 0.05;
+
+// Star power: charge the meter to full, press Space to pop it — a big
+// visual flare and a score multiplier for a short window, then it unloads
+// back down to the normal baseline.
+const STAR_POWER_READY_AT = 0.999;
+const STAR_POWER_DURATION = 7; // seconds — kept short on purpose
+const STAR_POWER_MULT = 2;
+
 export type Judgment = "perfect" | "great" | "good" | "miss";
 export type EngineMode = "idle" | "play" | "edit" | "finale";
 
@@ -47,6 +63,9 @@ export type Hud = {
   accuracy: number;
   recorded: number;
   health: number; // 0..1, drives how "intact" the song sounds
+  starPowerReady: boolean;
+  starPower: boolean;
+  starPowerRemaining: number; // seconds left in the active window
 };
 
 export type Results = {
@@ -64,7 +83,14 @@ export type EngineCallbacks = {
   onStatus: (s: string) => void;
 };
 
-type LiveNote = Note & { state: "pending" | "hit" | "missed"; judgment?: Judgment };
+type LiveNote = Note & {
+  state: "pending" | "hit" | "missed" | "holding" | "completed" | "dropped";
+  judgment?: Judgment;
+  // Transient engagement tracking for hold notes: which required lane(s)
+  // have been pressed within the start window so far.
+  lane1Armed?: boolean;
+  lane2Armed?: boolean;
+};
 type Popup = { text: string; color: string; born: number; lane: number };
 
 function judge(delta: number): Judgment | null {
@@ -112,6 +138,13 @@ export class GameEngine {
   private chart: Chart = emptyChart();
   private notes: LiveNote[] = [];
   private recorded: Note[] = [];
+  // Hold notes currently being actively held (state === "holding"), checked
+  // each frame for a drop or a successful completion.
+  private holdActive: LiveNote[] = [];
+
+  private isStarPower = false;
+  private starPowerStart = 0;
+  private starPowerReady = false;
 
   private score = 0;
   private combo = 0;
@@ -268,6 +301,19 @@ export class GameEngine {
   private changeHealth(delta: number) {
     this.health = Math.max(0, Math.min(1, this.health + delta));
     this.applyHealthAudio();
+    // Ready-state tracks the meter directly while it's not already popped —
+    // dips below full (e.g. from a miss) revoke readiness until it refills.
+    if (!this.isStarPower) this.starPowerReady = this.health >= STAR_POWER_READY_AT;
+  }
+
+  // Pop the charged star-power meter: a big flare, a score multiplier, and a
+  // timed drain back down to the normal baseline. No-op if not charged.
+  activateStarPower(): void {
+    if (this.mode !== "play" || this.isStarPower || !this.starPowerReady) return;
+    this.isStarPower = true;
+    this.starPowerReady = false;
+    this.starPowerStart = this.nowSec;
+    this.explode();
   }
 
   get isPaused(): boolean {
@@ -300,6 +346,9 @@ export class GameEngine {
     this.shockwaves = [];
     this.flashAt = -10;
     this.nextMilestone = 25;
+    this.holdActive = [];
+    this.isStarPower = false;
+    this.starPowerReady = false;
   }
 
   startPlay(chart: Chart): void {
@@ -384,7 +433,14 @@ export class GameEngine {
     const k = rawKey.toLowerCase();
 
     if (k === " " || k === "spacebar") {
-      this.togglePlay();
+      // Space is dedicated to star power during play; charting keeps the
+      // old play/pause behavior since there's no meter to pop there.
+      if (this.mode === "play") this.activateStarPower();
+      else this.togglePlay();
+      return true;
+    }
+    if (k === "p") {
+      if (this.mode === "play") this.togglePlay();
       return true;
     }
     if (this.mode === "edit" && (k === "backspace" || k === "z")) {
@@ -410,6 +466,28 @@ export class GameEngine {
     this.pressLane(lane);
   }
 
+  // Shared scoring/effects for a judged hit — a tapped note or the moment a
+  // hold note gets fully engaged.
+  private registerHit(note: LiveNote, j: Judgment, primaryLane: number): number {
+    const t = this.audio.currentTime ?? 0;
+    note.judgment = j;
+    this.counts[j] += 1;
+    this.combo += 1;
+    this.maxCombo = Math.max(this.maxCombo, this.combo);
+    const mult = (1 + Math.min(this.combo, 100) / 100) * (this.isStarPower ? STAR_POWER_MULT : 1);
+    const gained = Math.round(POINTS[j] * mult);
+    this.score += gained;
+    this.changeHealth(HEALTH_HIT[j]);
+    this.laneFlash[primaryLane] = t;
+    this.popups.push({ text: `${j.toUpperCase()} +${gained}`, color: judgmentColor(j), born: t, lane: primaryLane });
+    this.burst(primaryLane, LANE_COLORS[primaryLane], j === "perfect" ? 14 : 8);
+    if (this.combo >= this.nextMilestone) {
+      this.nextMilestone += 25;
+      this.supernova(LANE_COLORS[primaryLane]);
+    }
+    return gained;
+  }
+
   private pressLane(lane: number): void {
     const t = this.audio.currentTime ?? 0;
     this.laneHeld[lane] = true;
@@ -423,11 +501,13 @@ export class GameEngine {
       return;
     }
 
-    // play mode: match nearest pending note in this lane
+    // Match the nearest pending note that wants this lane — either as its
+    // primary lane, or as the second lane of a dual combo hold.
     let best: LiveNote | null = null;
     let bestDelta = Infinity;
     for (const n of this.notes) {
-      if (n.lane !== lane || n.state !== "pending") continue;
+      if (n.state !== "pending") continue;
+      if (n.lane !== lane && n.lane2 !== lane) continue;
       const d = n.time - t;
       if (d > W_GOOD) break; // sorted; nothing closer past here
       if (Math.abs(d) < Math.abs(bestDelta)) {
@@ -444,26 +524,28 @@ export class GameEngine {
       return;
     }
 
-    best.state = "hit";
-    best.judgment = j;
-    this.counts[j] += 1;
-    this.combo += 1;
-    this.maxCombo = Math.max(this.maxCombo, this.combo);
-    const mult = 1 + Math.min(this.combo, 100) / 100;
-    const gained = Math.round(POINTS[j] * mult);
-    this.score += gained;
-    this.changeHealth(HEALTH_HIT[j]);
-    this.laneFlash[lane] = t;
-    this.popups.push({ text: `${j.toUpperCase()} +${gained}`, color: judgmentColor(j), born: t, lane });
-
-    // Feed the star: sparkle burst at the receptor.
-    this.burst(lane, LANE_COLORS[lane], j === "perfect" ? 14 : 8);
-
-    // Supernova flare on each combo milestone.
-    if (this.combo >= this.nextMilestone) {
-      this.nextMilestone += 25;
-      this.supernova(LANE_COLORS[lane]);
+    if (best.holdDur == null) {
+      best.state = "hit";
+      this.registerHit(best, j, lane);
+      return;
     }
+
+    // Hold note: arm whichever side was just pressed.
+    if (best.lane2 !== undefined && lane === best.lane2) best.lane2Armed = true;
+    else best.lane1Armed = true;
+
+    const needsBoth = best.lane2 !== undefined;
+    const bothReady = !needsBoth || (best.lane1Armed && best.lane2Armed);
+    if (!bothReady) {
+      // Only one side of a combo hold is down so far — flash it and wait
+      // for the other within the same timing window.
+      this.laneFlash[lane] = t;
+      return;
+    }
+
+    best.state = "holding";
+    this.registerHit(best, j, lane);
+    this.holdActive.push(best);
   }
 
   // --- loop ----------------------------------------------------------------
@@ -491,6 +573,49 @@ export class GameEngine {
           this.popups.push({ text: "MISS", color: judgmentColor("miss"), born: t, lane: n.lane });
         }
       }
+
+      // Actively-held comets: drop them the instant a required key releases
+      // early, or bank the completion bonus once held through to the end.
+      for (const n of this.holdActive) {
+        if (n.state !== "holding") continue;
+        const endTime = n.time + (n.holdDur ?? 0);
+        const stillHeld = this.laneHeld[n.lane] && (n.lane2 === undefined || this.laneHeld[n.lane2]);
+        if (!stillHeld) {
+          n.state = "dropped";
+          this.counts.miss += 1;
+          this.combo = 0;
+          this.changeHealth(-HEALTH_MISS * HEALTH_DROP_MULT);
+          this.duck();
+          this.popups.push({ text: "DROPPED", color: judgmentColor("miss"), born: t, lane: n.lane });
+        } else if (t >= endTime - HOLD_END_TOLERANCE) {
+          n.state = "completed";
+          const mult = this.isStarPower ? STAR_POWER_MULT : 1;
+          const bonus = Math.round(HOLD_BONUS_PER_SEC * (n.holdDur ?? 0) * (n.lane2 !== undefined ? HOLD_DUAL_MULT : 1) * mult);
+          this.score += bonus;
+          this.laneFlash[n.lane] = t;
+          if (n.lane2 !== undefined) this.laneFlash[n.lane2] = t;
+          this.popups.push({ text: `HOLD +${bonus}`, color: "#ffd34d", born: t, lane: n.lane });
+          this.burst(n.lane, LANE_COLORS[n.lane], 16);
+          if (n.lane2 !== undefined) this.burst(n.lane2, LANE_COLORS[n.lane2], 16);
+        }
+      }
+      this.holdActive = this.holdActive.filter((n) => n.state === "holding");
+
+      // Star power: drains on a fixed timer back to the normal baseline,
+      // independent of hits/misses during the window.
+      if (this.isStarPower) {
+        const elapsed = now - this.starPowerStart;
+        if (elapsed >= STAR_POWER_DURATION) {
+          this.isStarPower = false;
+          this.health = HEALTH_START;
+          this.applyHealthAudio();
+        } else {
+          const frac = elapsed / STAR_POWER_DURATION;
+          this.health = 1 - frac * (1 - HEALTH_START);
+          this.applyHealthAudio();
+        }
+      }
+
       this.emitHud(false);
     } else if (this.mode === "finale") {
       if (now - this.finaleStart > FINALE_SECONDS) {
@@ -597,6 +722,25 @@ export class GameEngine {
     }
     this.shooting = this.shooting.filter((s) => s.life > 0 && s.x > -80 && s.x < w + 80);
 
+    // Star power: a steady drift of sparkles around the core while it's active.
+    if (this.mode === "play" && this.isStarPower && Math.random() < 0.6) {
+      const { strikeY } = this.view;
+      const cx = w / 2;
+      const a = Math.random() * Math.PI * 2;
+      const r = 40 + Math.random() * 90;
+      this.particles.push({
+        x: cx + Math.cos(a) * r,
+        y: strikeY + Math.sin(a) * r,
+        vx: Math.cos(a) * 22,
+        vy: Math.sin(a) * 22 - 12,
+        life: 0.6 + Math.random() * 0.6,
+        max: 1.2,
+        color: Math.random() < 0.5 ? "#7ef9ff" : "#ffe9a8",
+        r: 1 + Math.random() * 2,
+        float: true,
+      });
+    }
+
     // Particles.
     for (const p of this.particles) {
       if (p.float) {
@@ -622,12 +766,18 @@ export class GameEngine {
     const acc = done
       ? (this.counts.perfect + this.counts.great * 0.7 + this.counts.good * 0.4) / done
       : 1;
+    const starPowerRemaining = this.isStarPower
+      ? Math.max(0, STAR_POWER_DURATION - (this.nowSec - this.starPowerStart))
+      : 0;
     this.cb.onHud({
       score: this.score,
       combo: this.combo,
       accuracy: Math.round(acc * 1000) / 10,
       recorded: this.recorded.length,
       health: this.health,
+      starPowerReady: this.starPowerReady,
+      starPower: this.isStarPower,
+      starPowerRemaining,
     });
   }
 
@@ -700,6 +850,13 @@ export class GameEngine {
     const nebA = 0.05 + 0.05 * health;
     neb(W * 0.25, H * 0.3, Math.max(W, H) * 0.5, "#3a2a7a", nebA);
     neb(W * 0.8, H * 0.5, Math.max(W, H) * 0.45, "#0b5c7a", nebA);
+
+    // Star power: a shifting-hue glow wash across the whole screen while active.
+    if (this.mode === "play" && this.isStarPower) {
+      const hue = (now * 90) % 360;
+      ctx.fillStyle = `hsla(${hue}, 85%, 60%, ${0.08 + 0.05 * Math.sin(now * 5)})`;
+      ctx.fillRect(0, 0, W, H);
+    }
 
     // Twinkling starfield.
     for (const s of this.bgStars) {
@@ -836,11 +993,76 @@ export class GameEngine {
       const seed = (note.time * 0.61803398875) % 1; // deterministic per-note phase
       drawStar(x, y, r, LANE_COLORS[note.lane], faded ? 0.28 : 1, seed);
     };
+
+    // Hold ("comet") notes: a streaking beam from the head (leading edge)
+    // to the tail. While actively held, the head pins to the strike line and
+    // the beam shrinks as the tail catches up. A dropped hold turns gray for
+    // whatever's left of its run.
+    const drawComet = (n: LiveNote) => {
+      if (n.state === "completed") return;
+      const start = n.time;
+      const end = n.time + (n.holdDur ?? 0);
+      const gray = n.state === "dropped";
+      let headY: number;
+      let tailY: number;
+      if (n.state === "holding" && !gray) {
+        headY = strikeY;
+        tailY = strikeY - (end - t) * pxPerSec;
+      } else {
+        headY = strikeY - (start - t) * pxPerSec;
+        tailY = strikeY - (end - t) * pxPerSec;
+      }
+      const top = Math.min(headY, tailY);
+      const bottom = Math.max(headY, tailY);
+      if (bottom < -80 || top > H + 80) return;
+
+      const lanes = n.lane2 !== undefined ? [n.lane, n.lane2] : [n.lane];
+      const beamW = Math.max(6, Math.min(laneW, 96) * 0.22);
+      for (const lane of lanes) {
+        const x = lane * laneW + laneW / 2;
+        const color = gray ? "#6c6c74" : LANE_COLORS[lane];
+        const grad = ctx.createLinearGradient(x, top, x, bottom);
+        grad.addColorStop(0, hexA(color, gray ? 0.05 : 0.08));
+        grad.addColorStop(1, hexA(color, gray ? 0.5 : 0.9));
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = beamW;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+        ctx.stroke();
+        if (!gray) {
+          const glow = ctx.createRadialGradient(x, bottom, 0, x, bottom, Math.min(laneW, 96) * 0.5);
+          glow.addColorStop(0, hexA("#ffffff", 0.9));
+          glow.addColorStop(0.4, hexA(color, 0.6));
+          glow.addColorStop(1, hexA(color, 0));
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(x, bottom, Math.min(laneW, 96) * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      if (n.lane2 !== undefined && !gray) {
+        const x1 = n.lane * laneW + laneW / 2;
+        const x2 = n.lane2 * laneW + laneW / 2;
+        ctx.strokeStyle = hexA("#ffffff", 0.25);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x1, Math.min(strikeY, bottom));
+        ctx.lineTo(x2, Math.min(strikeY, bottom));
+        ctx.stroke();
+      }
+    };
+
     if (isEdit) {
       for (const n of this.chart.notes) drawNote(n, true);
       for (const n of this.recorded) drawNote(n, false);
     } else if (!isFinale) {
       for (const n of this.notes) {
+        if (n.holdDur != null) {
+          drawComet(n);
+          continue;
+        }
         if (n.state === "hit") continue;
         drawNote(n, n.state === "missed");
       }

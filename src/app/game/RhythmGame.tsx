@@ -26,7 +26,10 @@ export default function RhythmGame() {
   const [playing, setPlaying] = useState(false);
   const [results, setResults] = useState<Results | null>(null);
   const [status, setStatus] = useState("");
-  const [hud, setHud] = useState<Hud>({ score: 0, combo: 0, accuracy: 100, recorded: 0, health: 0.7 });
+  const [hud, setHud] = useState<Hud>({
+    score: 0, combo: 0, accuracy: 100, recorded: 0, health: 0.7,
+    starPowerReady: false, starPower: false, starPowerRemaining: 0,
+  });
   const [sensitivity, setSensitivity] = useState(DEFAULT_DETECT.sensitivity);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -182,6 +185,10 @@ export default function RhythmGame() {
     setPlaying(!eng.isPaused);
   }, []);
 
+  const activateStarPower = useCallback(() => {
+    engineRef.current?.activateStarPower();
+  }, []);
+
   const saveTake = useCallback(() => {
     const eng = engineRef.current;
     if (!eng) return;
@@ -210,9 +217,14 @@ export default function RhythmGame() {
     download(`${safe}.chart.json`, JSON.stringify(chart, null, 2));
   }, [chart]);
 
+  const glowKeyframes = (
+    <style>{`@keyframes pulse-glow { 0%, 100% { filter: drop-shadow(0 0 4px #3ad6ff); } 50% { filter: drop-shadow(0 0 12px #3ad6ff); } }`}</style>
+  );
+
   if (mode === "menu") {
     return (
       <div style={S.root}>
+        {glowKeyframes}
         <Menu
           chart={chart}
           setChart={setChart}
@@ -236,6 +248,7 @@ export default function RhythmGame() {
 
   return (
     <div style={S.root}>
+      {glowKeyframes}
       <div style={S.stage}>
         <div style={S.hudRow}>
           <div style={S.hudLeft}>
@@ -246,12 +259,20 @@ export default function RhythmGame() {
               <button style={S.ghostBtn} onClick={resetPlay}>⟲ Reset</button>
             )}
             <button style={S.ghostBtn} onClick={togglePlay}>
-              {playing ? "⏸ Pause" : "▶ Play"} <span style={S.kbd}>Space</span>
+              {playing ? "⏸ Pause" : "▶ Play"} <span style={S.kbd}>P</span>
             </button>
+            {mode === "play" && hud.starPowerReady && !hud.starPower && (
+              <button style={S.starPowerBtn} onClick={activateStarPower}>
+                ⚡ Star Power <span style={S.kbd}>Space</span>
+              </button>
+            )}
           </div>
           {mode === "play" ? (
             <div style={S.hudStats}>
-              <RockMeter health={hud.health} />
+              {hud.starPower && (
+                <span style={S.starPowerBadge}>★ {hud.starPowerRemaining.toFixed(1)}s</span>
+              )}
+              <RockMeter health={hud.health} ready={hud.starPowerReady} active={hud.starPower} />
               <Stat label="Score" value={hud.score.toLocaleString()} />
               <Stat label="Combo" value={`${hud.combo}x`} />
               <Stat label="Accuracy" value={`${hud.accuracy}%`} />
@@ -450,15 +471,28 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RockMeter({ health }: { health: number }) {
+function RockMeter({ health, ready, active }: { health: number; ready: boolean; active: boolean }) {
   const pct = Math.round(Math.max(0, Math.min(1, health)) * 100);
-  const color = health > 0.55 ? "#3f9142" : health > 0.28 ? "#ef9f27" : "#e24b4a";
+  const color = active
+    ? "linear-gradient(90deg,#7ef9ff,#ffe9a8,#ff9ad6)"
+    : ready
+      ? "#3ad6ff"
+      : health > 0.55
+        ? "#3f9142"
+        : health > 0.28
+          ? "#ef9f27"
+          : "#e24b4a";
   return (
-    <div style={S.meterWrap} title="Miss the beats and the star collapses">
+    <div
+      style={{ ...S.meterWrap, ...(ready && !active ? S.meterWrapReady : {}) }}
+      title="Miss the beats and the star collapses — fill it to charge star power"
+    >
       <div style={S.meterTrack}>
         <div style={{ ...S.meterFill, width: `${pct}%`, background: color }} />
       </div>
-      <div style={S.statLabel}>Star energy</div>
+      <div style={S.statLabel}>
+        {active ? "★ Star power!" : ready ? "Star power ready" : "Star energy"}
+      </div>
     </div>
   );
 }
@@ -486,6 +520,8 @@ const S: Record<string, React.CSSProperties> = {
   bigPlay: { width: "100%", padding: "14px", borderRadius: 12, background: "linear-gradient(135deg,#7f77dd,#5850c8)", border: "none", color: "#fff", cursor: "pointer", fontWeight: 800, fontSize: 18 },
   linkBtn: { display: "inline-block", textAlign: "center", padding: "10px 12px", borderRadius: 10, background: "transparent", border: "1px solid rgba(255,255,255,0.14)", color: "#cfcdd8", cursor: "pointer", fontWeight: 600, fontSize: 13 },
   ghostBtn: { padding: "8px 12px", borderRadius: 9, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#e8e6de", cursor: "pointer", fontWeight: 600, fontSize: 14 },
+  starPowerBtn: { padding: "8px 12px", borderRadius: 9, background: "linear-gradient(90deg,#3ad6ff,#8f7bff)", border: "none", color: "#04121a", cursor: "pointer", fontWeight: 800, fontSize: 14, animation: "pulse-glow 1.1s ease-in-out infinite" },
+  starPowerBadge: { fontWeight: 800, fontSize: 14, color: "#ffd98a" },
   settings: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16, alignItems: "end", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 18 },
   field: { display: "flex", flexDirection: "column", gap: 6 },
   fieldLabel: { fontSize: 12, color: "#a9a7a0", fontWeight: 600 },
@@ -504,6 +540,7 @@ const S: Record<string, React.CSSProperties> = {
   hudStats: { display: "flex", gap: 22, alignItems: "center" },
   editHint: { fontSize: 12, color: "#a9a7a0" },
   meterWrap: { minWidth: 120, textAlign: "center" },
+  meterWrapReady: { filter: "drop-shadow(0 0 6px #3ad6ff)", animation: "pulse-glow 1.1s ease-in-out infinite" },
   meterTrack: { height: 10, borderRadius: 6, background: "rgba(255,255,255,0.12)", overflow: "hidden", marginBottom: 3 },
   meterFill: { height: "100%", borderRadius: 6, transition: "width 0.12s linear, background 0.2s linear" },
   kbd: { fontSize: 11, padding: "1px 5px", borderRadius: 4, background: "rgba(255,255,255,0.12)", marginLeft: 4 },

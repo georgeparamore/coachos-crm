@@ -13,6 +13,14 @@ export type Note = {
   time: number;
   // Lane index, 0..LANE_COUNT-1.
   lane: number;
+  // Hold ("comet") notes: present when this note must be held down rather
+  // than tapped. Player must press at `time` and keep the lane held until
+  // time + holdDur.
+  holdDur?: number;
+  // A second lane required for a dual-lane combo hold (both `lane` and
+  // `lane2` must be held together for the duration). Absent for a normal
+  // single-lane hold or a plain tap.
+  lane2?: number;
 };
 
 export type Chart = {
@@ -51,7 +59,15 @@ export function parseChart(raw: unknown): Chart {
     const lane = Number(nn.lane);
     if (!Number.isFinite(time) || !Number.isInteger(lane)) continue;
     if (lane < 0 || lane >= LANE_COUNT) continue;
-    notes.push({ time, lane });
+
+    const note: Note = { time, lane };
+    const holdDur = Number(nn.holdDur);
+    if (Number.isFinite(holdDur) && holdDur > 0) note.holdDur = holdDur;
+    const lane2 = Number(nn.lane2);
+    if (note.holdDur && Number.isInteger(lane2) && lane2 >= 0 && lane2 < LANE_COUNT && lane2 !== lane) {
+      note.lane2 = lane2;
+    }
+    notes.push(note);
   }
   notes.sort((a, b) => a.time - b.time);
 
