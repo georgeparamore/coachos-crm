@@ -88,7 +88,7 @@ export default function RhythmGame() {
 
   const onPointer = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    engineRef.current?.pointerAt(e.clientX, rect.left, rect.width);
+    engineRef.current?.pointerAt(e.clientX, e.clientY, rect.left, rect.top, rect.width);
   }, []);
 
   // --- file loading ---

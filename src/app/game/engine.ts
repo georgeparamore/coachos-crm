@@ -275,9 +275,16 @@ export class GameEngine {
     }
   }
 
-  private resumeGraph() {
+  // Returns a promise that resolves once the audio context is actually
+  // running. iOS Safari mutes playback if audio.play() fires while the
+  // context is still "suspended" — awaiting this before play() is what
+  // makes the very first tap produce sound instead of silence.
+  private resumeGraph(): Promise<void> {
     this.ensureGraph();
-    if (this.actx && this.actx.state === "suspended") void this.actx.resume();
+    if (this.actx && this.actx.state === "suspended") {
+      return this.actx.resume().catch(() => undefined);
+    }
+    return Promise.resolve();
   }
 
   // Push the current health level to the slow audio params: low health means
@@ -374,10 +381,10 @@ export class GameEngine {
     return this.audio.paused ?? true;
   }
 
-  togglePlay(): void {
+  async togglePlay(): Promise<void> {
     if (!this.audio.play) return;
     if (this.audio.paused) {
-      this.resumeGraph();
+      await this.resumeGraph();
       this.audio.play().catch(() => this.cb.onStatus("Tap the board once, then press play."));
     } else {
       this.audio.pause();
@@ -407,11 +414,11 @@ export class GameEngine {
     this.vortex = [];
   }
 
-  startPlay(chart: Chart): void {
+  async startPlay(chart: Chart): Promise<void> {
     this.resetRuntime(chart);
     this.mode = "play";
     this.health = HEALTH_START;
-    this.resumeGraph();
+    await this.resumeGraph();
     this.applyHealthAudio();
     if (this.duckGain && this.actx) this.duckGain.gain.setValueAtTime(1, this.actx.currentTime);
     this.audio.currentTime = 0;
@@ -516,7 +523,18 @@ export class GameEngine {
     if (lane >= 0) this.laneHeld[lane] = false;
   }
 
-  pointerAt(clientX: number, rectLeft: number, rectWidth: number): void {
+  pointerAt(clientX: number, clientY: number, rectLeft: number, rectTop: number, rectWidth: number): void {
+    // A tap just below the receptors — right where your thumbs already are —
+    // activates star power when it's charged, so you don't have to reach
+    // away to a corner button and miss the next note doing it.
+    const { strikeY } = this.view;
+    if (this.mode === "play" && this.starPowerReady && !this.isStarPower && strikeY) {
+      const relY = clientY - rectTop;
+      if (relY >= strikeY + 30 && relY <= strikeY + 100) {
+        this.activateStarPower();
+        return;
+      }
+    }
     const rel = clientX - rectLeft;
     const lane = Math.max(0, Math.min(LANE_COUNT - 1, Math.floor(rel / (rectWidth / LANE_COUNT))));
     this.pressLane(lane);
@@ -1351,7 +1369,7 @@ export class GameEngine {
         ctx.fillStyle = "#3ad6ff";
         ctx.font = "700 13px ui-sans-serif, system-ui, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("⚡ STAR POWER READY — SPACE", W / 2, barY - 14);
+        ctx.fillText("⚡ STAR POWER READY — TAP HERE OR SPACE", W / 2, barY - 14);
       }
     }
 
