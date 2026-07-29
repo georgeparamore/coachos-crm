@@ -18,6 +18,13 @@ export type DemoListing = {
   photoUrl?: string;
 };
 
+export type DemoEvent = {
+  id: string;
+  date: string; // "YYYY-MM-DD"
+  time: string; // "HH:MM", 24h
+  title: string;
+};
+
 export type DemoLead = {
   id: string;
   name: string;
@@ -237,6 +244,22 @@ export const DEMO_LEADS: DemoLead[] = [
 export function getListing(id: string): DemoListing | undefined {
   return DEMO_LISTINGS.find((l) => l.id === id);
 }
+
+function offsetDate(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Seeded relative to "today" so the calendar always opens on a populated week,
+// regardless of when someone runs the demo.
+export const DEMO_EVENTS: DemoEvent[] = [
+  { id: "ev1", date: offsetDate(-2), time: "10:00", title: "Showing: 2210 Desert Rose Ln (Priya Nair)" },
+  { id: "ev2", date: offsetDate(0), time: "14:00", title: "Showing: 412 Willow Creek Dr (Sarah Chen)" },
+  { id: "ev3", date: offsetDate(0), time: "16:30", title: "Call: Marcus Webb (comp report follow-up)" },
+  { id: "ev4", date: offsetDate(2), time: "11:00", title: "Listing consult: Marcus Webb" },
+  { id: "ev5", date: offsetDate(3), time: "10:00", title: "Showing: 412 Willow Creek Dr (Sarah Chen, 2nd visit)" },
+];
 
 export const STAGE_BADGE: Record<DemoStage, string> = {
   New: "badge-blue",
