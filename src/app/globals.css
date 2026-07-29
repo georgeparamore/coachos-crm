@@ -1208,6 +1208,46 @@ select.form-input {
 .rd-lead-name-link:hover {
   text-decoration-color: currentColor;
 }
+.rd-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rd-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.rd-switch-track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--border-strong);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.rd-switch input:checked + .rd-switch-track {
+  background: var(--accent);
+}
+.rd-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+.rd-switch input:checked + .rd-switch-track .rd-switch-thumb {
+  transform: translateX(14px);
+}
 .rd-empty-note {
   font-size: 13px;
   color: var(--text-3);
