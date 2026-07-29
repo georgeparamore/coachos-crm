@@ -1,28 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  DEMO_LEADS,
-  SOURCE_LABEL,
-  STAGE_BADGE,
-  getListing,
-  type DemoStage,
-} from "@/lib/realestate-demo-data";
+import { SOURCE_LABEL, STAGE_BADGE, getListing, type DemoLead, type DemoStage } from "@/lib/realestate-demo-data";
+import { useRealEstateDemo } from "@/lib/realestate-demo-store";
+import { LeadProfileModal } from "@/components/realestate-demo/lead-profile-modal";
 
 const STAGES: (DemoStage | "all")[] = ["all", "New", "Hot Lead", "In Conversation", "Showing Booked", "Follow Up"];
 
 export function LeadsDirectory() {
+  const { leads, calledIds } = useRealEstateDemo();
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState<DemoStage | "all">("all");
+  const [selectedLead, setSelectedLead] = useState<DemoLead | null>(null);
 
   const filtered = useMemo(() => {
-    return DEMO_LEADS.filter((l) => {
+    return leads.filter((l) => {
       const matchesStage = stage === "all" || l.stage === stage;
       const matchesQuery =
         query.trim() === "" || l.name.toLowerCase().includes(query.trim().toLowerCase());
       return matchesStage && matchesQuery;
     });
-  }, [query, stage]);
+  }, [leads, query, stage]);
 
   return (
     <div>
@@ -63,7 +61,9 @@ export function LeadsDirectory() {
               return (
                 <tr key={lead.id}>
                   <td>
-                    <div className="rd-lead-name">{lead.name}</div>
+                    <button className="rd-lead-name-link" onClick={() => setSelectedLead(lead)}>
+                      {lead.name}
+                    </button>
                     <div className="mini-stat-label">{lead.phone}</div>
                   </td>
                   <td className="mini-stat-label">{lead.intent === "buying" ? "Buying" : "Selling"}</td>
@@ -85,6 +85,14 @@ export function LeadsDirectory() {
           </tbody>
         </table>
       </div>
+
+      {selectedLead && (
+        <LeadProfileModal
+          lead={selectedLead}
+          called={calledIds.has(selectedLead.id)}
+          onClose={() => setSelectedLead(null)}
+        />
+      )}
     </div>
   );
 }

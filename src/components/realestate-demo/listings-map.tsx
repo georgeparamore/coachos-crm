@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { DEMO_LISTINGS, type DemoListing } from "@/lib/realestate-demo-data";
+import { BookingFormModal } from "@/components/realestate-demo/booking-form-modal";
+import { ListingFormModal } from "@/components/realestate-demo/listing-form-modal";
+import { useRealEstateDemo } from "@/lib/realestate-demo-store";
+import type { DemoListing } from "@/lib/realestate-demo-data";
 
 const STATUS_BADGE: Record<DemoListing["status"], string> = {
   active: "badge-green",
@@ -14,29 +17,49 @@ function formatPrice(n: number) {
 }
 
 export function ListingsMap() {
+  const { listings, addListing } = useRealEstateDemo();
   const [selected, setSelected] = useState<DemoListing | null>(null);
   const [filter, setFilter] = useState<"all" | DemoListing["status"]>("all");
   const [toast, setToast] = useState<string | null>(null);
+  const [booking, setBooking] = useState<DemoListing | null>(null);
+  const [addingListing, setAddingListing] = useState(false);
 
-  const visible = DEMO_LISTINGS.filter((l) => filter === "all" || l.status === filter);
+  const visible = listings.filter((l) => filter === "all" || l.status === filter);
 
-  function bookShowing(listing: DemoListing) {
-    setToast(`Showing request drafted for ${listing.address} — added to your calendar for review.`);
+  function showToast(message: string) {
+    setToast(message);
     setTimeout(() => setToast(null), 3200);
+  }
+
+  function handleBookingSubmit(details: { name: string; phone: string; date: string; time: string; notes: string }) {
+    if (!booking) return;
+    showToast(`Showing requested for ${details.name || "your client"} at ${booking.address} — ${details.date} ${details.time}. Added to your calendar for review.`);
+    setBooking(null);
+  }
+
+  function handleAddListing(input: Parameters<typeof addListing>[0]) {
+    addListing(input);
+    setAddingListing(false);
+    showToast(`${input.address} added to your listings.`);
   }
 
   return (
     <div>
-      <div className="rd-map-filters">
-        {(["all", "active", "pending", "sold"] as const).map((f) => (
-          <button
-            key={f}
-            className={`btn btn-sm${filter === f ? " btn-primary" : ""}`}
-            onClick={() => setFilter(f)}
-          >
-            {f === "all" ? "All listings" : f[0].toUpperCase() + f.slice(1)}
-          </button>
-        ))}
+      <div className="rd-leads-toolbar">
+        <div className="rd-map-filters">
+          {(["all", "active", "pending", "sold"] as const).map((f) => (
+            <button
+              key={f}
+              className={`btn btn-sm${filter === f ? " btn-primary" : ""}`}
+              onClick={() => setFilter(f)}
+            >
+              {f === "all" ? "All listings" : f[0].toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => setAddingListing(true)}>
+          + Add listing
+        </button>
       </div>
 
       <div className="rd-map">
@@ -58,6 +81,10 @@ export function ListingsMap() {
             <button className="rd-map-popup-close" onClick={() => setSelected(null)} aria-label="Close">
               ×
             </button>
+            {selected.photoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={selected.photoUrl} alt={selected.address} className="rd-map-popup-photo" />
+            )}
             <div className="rd-map-popup-price">${selected.price.toLocaleString()}</div>
             <div className="page-sub">
               {selected.address}, {selected.city}
@@ -68,7 +95,11 @@ export function ListingsMap() {
               </span>
               <span className={`badge ${STATUS_BADGE[selected.status]}`}>{selected.status}</span>
             </div>
-            <button className="btn btn-primary btn-sm" style={{ width: "100%", justifyContent: "center", marginTop: 6 }} onClick={() => bookShowing(selected)}>
+            <button
+              className="btn btn-primary btn-sm"
+              style={{ width: "100%", justifyContent: "center", marginTop: 6 }}
+              onClick={() => setBooking(selected)}
+            >
               Book a showing
             </button>
           </div>
@@ -77,8 +108,14 @@ export function ListingsMap() {
 
       <div className="rd-listing-grid">
         {visible.map((listing) => (
-          <div key={listing.id} className="card" style={{ marginBottom: 0 }}>
-            <div className="rd-lead-card-top">
+          <div key={listing.id} className="card rd-listing-card" style={{ marginBottom: 0 }}>
+            {listing.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={listing.photoUrl} alt={listing.address} className="rd-listing-card-photo" />
+            ) : (
+              <div className="rd-listing-card-photo rd-listing-card-photo-placeholder">No photo yet</div>
+            )}
+            <div className="rd-lead-card-top" style={{ marginTop: 10 }}>
               <span className="rd-lead-name">${listing.price.toLocaleString()}</span>
               <span className={`badge ${STATUS_BADGE[listing.status]}`}>{listing.status}</span>
             </div>
@@ -91,6 +128,14 @@ export function ListingsMap() {
           </div>
         ))}
       </div>
+
+      {booking && (
+        <BookingFormModal listing={booking} onClose={() => setBooking(null)} onSubmit={handleBookingSubmit} />
+      )}
+
+      {addingListing && (
+        <ListingFormModal onClose={() => setAddingListing(false)} onSubmit={handleAddListing} />
+      )}
 
       {toast && <div className="rd-toast">{toast}</div>}
     </div>

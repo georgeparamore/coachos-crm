@@ -15,6 +15,7 @@ export type DemoListing = {
   status: "active" | "pending" | "sold";
   top: string; // % position on the mock map
   left: string;
+  photoUrl?: string;
 };
 
 export type DemoLead = {
