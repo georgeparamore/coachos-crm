@@ -6,20 +6,22 @@ import type { DemoListing } from "@/lib/realestate-demo-data";
 type NewListingInput = Omit<DemoListing, "id" | "top" | "left">;
 
 export function ListingFormModal({
+  initial,
   onClose,
   onSubmit,
 }: {
+  initial?: DemoListing;
   onClose: () => void;
   onSubmit: (listing: NewListingInput) => void;
 }) {
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [price, setPrice] = useState("");
-  const [beds, setBeds] = useState("3");
-  const [baths, setBaths] = useState("2");
-  const [sqft, setSqft] = useState("");
-  const [status, setStatus] = useState<DemoListing["status"]>("active");
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [address, setAddress] = useState(initial?.address ?? "");
+  const [city, setCity] = useState(initial?.city ?? "");
+  const [price, setPrice] = useState(initial ? String(initial.price) : "");
+  const [beds, setBeds] = useState(initial ? String(initial.beds) : "3");
+  const [baths, setBaths] = useState(initial ? String(initial.baths) : "2");
+  const [sqft, setSqft] = useState(initial ? String(initial.sqft) : "");
+  const [status, setStatus] = useState<DemoListing["status"]>(initial?.status ?? "active");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(initial?.photoUrl ?? null);
 
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -46,7 +48,7 @@ export function ListingFormModal({
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
       <form className="modal" onSubmit={handleSubmit}>
-        <div className="card-title">Add a listing</div>
+        <div className="card-title">{initial ? "Edit listing" : "Add a listing"}</div>
 
         <label className="rd-field">
           <span className="rd-field-label">Address</span>
@@ -125,7 +127,7 @@ export function ListingFormModal({
             Cancel
           </button>
           <button type="submit" className="btn btn-primary">
-            Add listing
+            {initial ? "Save changes" : "Add listing"}
           </button>
         </div>
       </form>

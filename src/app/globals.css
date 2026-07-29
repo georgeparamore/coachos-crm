@@ -1568,6 +1568,15 @@ select.form-input {
   color: var(--text-3);
   font-size: 12px;
 }
+.rd-listing-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.rd-listing-card-actions .btn {
+  flex: 1;
+  justify-content: center;
+}
 
 /* Forms (booking / add listing) */
 .rd-field {
