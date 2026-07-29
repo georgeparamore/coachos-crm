@@ -17,6 +17,8 @@ type StoreValue = {
   confirmCall: (leadId: string, stage: DemoStage) => void;
   listings: DemoListing[];
   addListing: (listing: NewListingInput) => void;
+  updateListing: (id: string, listing: NewListingInput) => void;
+  deleteListing: (id: string) => void;
 };
 
 const RealEstateDemoContext = createContext<StoreValue | null>(null);
@@ -44,9 +46,17 @@ export function RealEstateDemoProvider({ children }: { children: React.ReactNode
     ]);
   }, []);
 
+  const updateListing = useCallback((id: string, listing: NewListingInput) => {
+    setListings((prev) => prev.map((l) => (l.id === id ? { ...l, ...listing } : l)));
+  }, []);
+
+  const deleteListing = useCallback((id: string) => {
+    setListings((prev) => prev.filter((l) => l.id !== id));
+  }, []);
+
   const value = useMemo(
-    () => ({ leads, calledIds, confirmCall, listings, addListing }),
-    [leads, calledIds, confirmCall, listings, addListing],
+    () => ({ leads, calledIds, confirmCall, listings, addListing, updateListing, deleteListing }),
+    [leads, calledIds, confirmCall, listings, addListing, updateListing, deleteListing],
   );
 
   return <RealEstateDemoContext.Provider value={value}>{children}</RealEstateDemoContext.Provider>;

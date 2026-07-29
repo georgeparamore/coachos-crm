@@ -17,12 +17,14 @@ function formatPrice(n: number) {
 }
 
 export function ListingsMap() {
-  const { listings, addListing } = useRealEstateDemo();
+  const { listings, addListing, updateListing, deleteListing } = useRealEstateDemo();
   const [selected, setSelected] = useState<DemoListing | null>(null);
   const [filter, setFilter] = useState<"all" | DemoListing["status"]>("all");
   const [toast, setToast] = useState<string | null>(null);
   const [booking, setBooking] = useState<DemoListing | null>(null);
   const [addingListing, setAddingListing] = useState(false);
+  const [editingListing, setEditingListing] = useState<DemoListing | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const visible = listings.filter((l) => filter === "all" || l.status === filter);
 
@@ -41,6 +43,21 @@ export function ListingsMap() {
     addListing(input);
     setAddingListing(false);
     showToast(`${input.address} added to your listings.`);
+  }
+
+  function handleEditListing(input: Parameters<typeof addListing>[0]) {
+    if (!editingListing) return;
+    updateListing(editingListing.id, input);
+    setEditingListing(null);
+    if (selected?.id === editingListing.id) setSelected(null);
+    showToast(`${input.address} updated.`);
+  }
+
+  function handleDelete(listing: DemoListing) {
+    deleteListing(listing.id);
+    setConfirmDeleteId(null);
+    if (selected?.id === listing.id) setSelected(null);
+    showToast(`${listing.address} removed from your listings.`);
   }
 
   return (
@@ -125,6 +142,25 @@ export function ListingsMap() {
             <div className="mini-stat-label" style={{ marginTop: 8 }}>
               {listing.beds} bd · {listing.baths} ba · {listing.sqft.toLocaleString()} sqft
             </div>
+            <div className="rd-listing-card-actions">
+              <button className="btn btn-sm" onClick={() => setEditingListing(listing)}>
+                Edit
+              </button>
+              {confirmDeleteId === listing.id ? (
+                <>
+                  <button className="btn btn-sm" onClick={() => setConfirmDeleteId(null)}>
+                    Cancel
+                  </button>
+                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(listing)}>
+                    Confirm delete
+                  </button>
+                </>
+              ) : (
+                <button className="btn btn-sm" onClick={() => setConfirmDeleteId(listing.id)}>
+                  Delete
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -135,6 +171,14 @@ export function ListingsMap() {
 
       {addingListing && (
         <ListingFormModal onClose={() => setAddingListing(false)} onSubmit={handleAddListing} />
+      )}
+
+      {editingListing && (
+        <ListingFormModal
+          initial={editingListing}
+          onClose={() => setEditingListing(null)}
+          onSubmit={handleEditListing}
+        />
       )}
 
       {toast && <div className="rd-toast">{toast}</div>}
