@@ -18,6 +18,8 @@ export function HomeClient() {
   const { leads, calledIds, confirmCall } = useRealEstateDemo();
   const [queue, setQueue] = useState<string[] | null>(null);
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
+  const [upNextId, setUpNextId] = useState<string | null>(null);
+  const [autoAdvance, setAutoAdvance] = useState(false);
   const [session, setSession] = useState({ calls: 0, booked: 0, followUps: 0 });
   const [showSessionEnd, setShowSessionEnd] = useState(false);
 
@@ -35,6 +37,7 @@ export function HomeClient() {
   const bookedToday = 2; // static, illustrative — this demo doesn't wire a real calendar
 
   const activeLead = activeLeadId ? leads.find((l) => l.id === activeLeadId) ?? null : null;
+  const upNextLead = upNextId ? leads.find((l) => l.id === upNextId) ?? null : null;
 
   function startSession() {
     setSession({ calls: 0, booked: 0, followUps: 0 });
@@ -60,7 +63,12 @@ export function HomeClient() {
     if (queue && queue.length > 0) {
       const [next, ...rest] = queue;
       setQueue(rest);
-      setActiveLeadId(next);
+      setActiveLeadId(null);
+      if (autoAdvance) {
+        setActiveLeadId(next);
+      } else {
+        setUpNextId(next);
+      }
     } else if (queue) {
       setQueue(null);
       setActiveLeadId(null);
@@ -68,6 +76,19 @@ export function HomeClient() {
     } else {
       setActiveLeadId(null);
     }
+  }
+
+  function callUpNext() {
+    if (!upNextId) return;
+    setActiveLeadId(upNextId);
+    setUpNextId(null);
+  }
+
+  function endSession() {
+    setQueue(null);
+    setActiveLeadId(null);
+    setUpNextId(null);
+    setShowSessionEnd(true);
   }
 
   function handleClose() {
@@ -82,9 +103,18 @@ export function HomeClient() {
           <div className="page-title">Good morning, Maria</div>
           <div className="page-sub">Here&apos;s what needs your attention today.</div>
         </div>
-        <button className="btn btn-accent" onClick={startSession} disabled={sortedLeads.length === 0}>
-          Start call session
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <label className="rd-switch">
+            <input type="checkbox" checked={autoAdvance} onChange={(e) => setAutoAdvance(e.target.checked)} />
+            <span className="rd-switch-track">
+              <span className="rd-switch-thumb" />
+            </span>
+            <span>Auto-dial next lead</span>
+          </label>
+          <button className="btn btn-accent" onClick={startSession} disabled={sortedLeads.length === 0}>
+            Start call session
+          </button>
+        </div>
       </div>
 
       <div className="rd-stats-strip">
@@ -141,6 +171,36 @@ export function HomeClient() {
         // otherwise auto-advancing to the next lead reuses the previous
         // instance's state and skips straight to the summary screen.
         <CallModal key={activeLead.id} lead={activeLead} onClose={handleClose} onConfirm={handleConfirm} />
+      )}
+
+      {upNextLead && (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="card-title">Up next</div>
+            <div className="rd-call-header" style={{ marginBottom: 4 }}>
+              <div className="rd-call-avatar">
+                {upNextLead.name
+                  .split(" ")
+                  .map((p) => p[0])
+                  .join("")}
+              </div>
+              <div>
+                <div className="rd-call-name">{upNextLead.name}</div>
+                <div className="rd-call-sub">{upNextLead.phone}</div>
+              </div>
+            </div>
+            <p className="page-sub">{upNextLead.summary}</p>
+            <div className="rd-summary-actions">
+              <button className="btn" onClick={endSession}>
+                End session
+              </button>
+              <button className="btn btn-primary" onClick={callUpNext}>
+                <NavIcon name="phone" />
+                Call now
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showSessionEnd && (
