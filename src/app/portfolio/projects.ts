@@ -23,6 +23,8 @@ export type Project = {
   accent: string;
   /** Emoji/glyph shown as the window "favicon". */
   glyph: string;
+  /** Short status tag shown on the window (e.g. "Product", "Live", "Demo"). */
+  status?: string;
   /** Longer description shown in the detail panel. */
   description: string;
   /** Bullet points: what it does / notable features. */
@@ -110,6 +112,7 @@ export const projects: Project[] = [
     tagline: "The operating system for coaches",
     accent: "#7f77dd",
     glyph: "🧭",
+    status: "Product",
     size: "lg",
     description:
       "An all-in-one platform that lets independent coaches run their entire business from one place — CRM, subscriptions, contracts, courses, invoicing and community. Built on Next.js 16 with Supabase and Stripe.",
@@ -138,6 +141,7 @@ export const projects: Project[] = [
     tagline: "Plugins and web tools for Old School RuneScape",
     accent: "#e0a458",
     glyph: "⚔️",
+    status: "Live",
     size: "lg",
     description:
       "A whole body of work around Old School RuneScape — a family of RuneLite plugins written in Java plus a suite of standalone web tools. Everything is built to run entirely on your own machine: the plugins never leave the game client, and the web tools are dependency-free HTML that pull live prices straight from the RuneScape Wiki API.",
@@ -158,6 +162,7 @@ export const projects: Project[] = [
     tagline: "Write and format Discord posts with a live preview",
     accent: "#5865f2",
     glyph: "💬",
+    status: "Live",
     size: "md",
     description:
       "A single-page, no-build editor for writing Discord announcements. Toolbar buttons cover every Discord markdown format, and a live preview mirrors how the message will actually render once you post it — so you can nail the formatting before it goes out.",
@@ -177,6 +182,7 @@ export const projects: Project[] = [
     tagline: "Brand & storefront for a cold-pressed juice company",
     accent: "#3fb56a",
     glyph: "🧃",
+    status: "Demo",
     size: "md",
     description:
       "A brand site and demo storefront for SeJuice Me, a cold-pressed juice company — “Pure Plants. Real Life.” It tells the brand story, shows off the product line, and runs a full ordering flow, all in a clean, natural aesthetic.",
@@ -195,6 +201,7 @@ export const projects: Project[] = [
     tagline: "A lead-first CRM built for a real estate agent",
     accent: "#2f9e8a",
     glyph: "🏡",
+    status: "Demo",
     size: "md",
     description:
       "A custom CRM demo built for a real estate agent (RReyes Realty Group). It puts the day's leads front and center — who to call, showings on the books, and the hot prospects — so an agent can work their whole pipeline at a glance.",
@@ -219,6 +226,7 @@ export const projects: Project[] = [
     tagline: "A Streamlabs-style recorder for games and desktop",
     accent: "#e2685f",
     glyph: "🎬",
+    status: "Desktop",
     size: "lg",
     description:
       "A Windows screen and game recorder built with WPF and .NET 9, styled after Streamlabs. Capture your display, a game window, a screen region or webcam, arrange scenes with layered sources, mix your audio, and record hardware-encoded H.264 MP4 — backed by a replay buffer, a trim editor, and one-click export presets for Discord and YouTube.",
@@ -240,6 +248,7 @@ export const projects: Project[] = [
     tagline: "Point your camera at a rock, find out what it is",
     accent: "#4a89dc",
     glyph: "💎",
+    status: "iOS",
     size: "md",
     description:
       "An iPhone app that identifies rocks and crystals from a photo. Snap a picture of a specimen and it recognizes what it is — turning your camera into a pocket geologist.",

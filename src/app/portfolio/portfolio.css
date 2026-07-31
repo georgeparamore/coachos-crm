@@ -182,6 +182,24 @@
   text-overflow: ellipsis;
 }
 
+/* Status tag (Product / Live / Demo / iOS / Desktop) — accent-tinted pill. */
+.pw-status,
+.modal-status {
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--accent) 72%, white 28%);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.pw-status { margin-left: auto; }
+.modal-status { font-size: 10.5px; padding: 4px 10px; margin-left: 2px; }
+
 .pw-preview {
   display: block;
   padding: 12px 12px 0;
@@ -438,6 +456,39 @@
   transition: background 0.2s ease;
 }
 .lightbox-close:hover { background: rgba(40, 44, 74, 0.9); }
+.lightbox-nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 22, 40, 0.72);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.2s ease;
+}
+.lightbox-nav:hover { background: rgba(40, 44, 74, 0.92); }
+.lightbox-nav.prev { left: clamp(10px, 3vw, 32px); }
+.lightbox-nav.next { right: clamp(10px, 3vw, 32px); }
+.lightbox-count {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: #cfd4f5;
+  background: rgba(20, 22, 40, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 5px 12px;
+  border-radius: 999px;
+}
 .gallery-nav {
   position: absolute;
   top: 50%;

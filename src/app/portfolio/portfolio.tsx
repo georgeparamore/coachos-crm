@@ -117,6 +117,7 @@ function ProjectWindow({
         </span>
         <span className="pw-glyph">{p.glyph}</span>
         <span className="pw-name">{p.name}</span>
+        {p.status && <span className="pw-status">{p.status}</span>}
       </span>
       <span className="pw-preview">
         {p.shots.length > 0 ? (
@@ -140,21 +141,23 @@ function ProjectModal({
   onClose: () => void;
 }) {
   const [shot, setShot] = useState(0);
-  // Currently enlarged screenshot (lightbox), or null.
-  const [zoom, setZoom] = useState<string | null>(null);
+  // Whether the current screenshot is enlarged (lightbox open).
+  const [zoomed, setZoomed] = useState(false);
   const shots = project.shots.length > 0 ? project.shots : [null];
+  const next = useCallback(() => setShot((s) => (s + 1) % shots.length), [shots.length]);
+  const prev = useCallback(() => setShot((s) => (s - 1 + shots.length) % shots.length), [shots.length]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         // Esc closes the lightbox first, then the modal.
-        if (zoom) setZoom(null);
+        if (zoomed) setZoomed(false);
         else onClose();
         return;
       }
-      if (zoom) return; // don't page through shots while one is enlarged
-      if (e.key === "ArrowRight") setShot((s) => (s + 1) % shots.length);
-      if (e.key === "ArrowLeft") setShot((s) => (s - 1 + shots.length) % shots.length);
+      // Arrows page through shots in both the gallery and the lightbox.
+      if (e.key === "ArrowRight") next();
+      if (e.key === "ArrowLeft") prev();
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -162,7 +165,7 @@ function ProjectModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [onClose, shots.length, zoom]);
+  }, [onClose, zoomed, next, prev]);
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
@@ -184,6 +187,7 @@ function ProjectModal({
           <span id="modal-title" className="modal-name">
             {project.name}
           </span>
+          {project.status && <span className="modal-status">{project.status}</span>}
           <button className="modal-close" onClick={onClose} aria-label="Close">
             ✕
           </button>
@@ -201,7 +205,7 @@ function ProjectModal({
                   src={shots[shot] as string}
                   alt={`${project.name} screenshot ${shot + 1}`}
                   title="Click to enlarge"
-                  onClick={() => setZoom(shots[shot] as string)}
+                  onClick={() => setZoomed(true)}
                 />
               )}
               {shots.length > 1 && (
@@ -280,11 +284,42 @@ function ProjectModal({
           </div>
         </div>
 
-        {zoom && (
-          <div className="lightbox" onClick={() => setZoom(null)} role="dialog" aria-modal="true">
+        {zoomed && shots[shot] !== null && (
+          <div className="lightbox" onClick={() => setZoomed(false)} role="dialog" aria-modal="true">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={zoom} alt={`${project.name} screenshot, enlarged`} />
-            <button className="lightbox-close" onClick={() => setZoom(null)} aria-label="Close enlarged view">
+            <img
+              src={shots[shot] as string}
+              alt={`${project.name} screenshot ${shot + 1}, enlarged`}
+              onClick={(e) => e.stopPropagation()}
+            />
+            {shots.length > 1 && (
+              <>
+                <button
+                  className="lightbox-nav prev"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    prev();
+                  }}
+                  aria-label="Previous screenshot"
+                >
+                  ‹
+                </button>
+                <button
+                  className="lightbox-nav next"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    next();
+                  }}
+                  aria-label="Next screenshot"
+                >
+                  ›
+                </button>
+                <span className="lightbox-count">
+                  {shot + 1} / {shots.length}
+                </span>
+              </>
+            )}
+            <button className="lightbox-close" onClick={() => setZoomed(false)} aria-label="Close enlarged view">
               ✕
             </button>
           </div>
