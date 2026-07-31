@@ -32,7 +32,6 @@
     radial-gradient(420px 420px at 20% 30%, rgba(127, 119, 221, 0.16), transparent 70%),
     radial-gradient(520px 520px at 82% 68%, rgba(74, 137, 220, 0.14), transparent 70%),
     radial-gradient(360px 360px at 60% 12%, rgba(197, 108, 214, 0.1), transparent 70%);
-  filter: blur(6px);
   animation: nebula-drift 44s ease-in-out infinite alternate;
 }
 
