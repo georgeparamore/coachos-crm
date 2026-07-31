@@ -192,7 +192,12 @@ export const projects: Project[] = [
       "Live ordering-flow demo — browse, add to cart, and check out (preview, no real payment)",
     ],
     tech: ["Next.js", "React", "Vercel"],
-    shots: [],
+    shots: [
+      "/portfolio/01home.png",
+      "/portfolio/02shop.png",
+      "/portfolio/03cart.png",
+      "/portfolio/04checkout.png",
+    ],
     links: [{ label: "Visit site", href: "https://sejuiceme.vercel.app/" }],
   },
   {
@@ -239,7 +244,14 @@ export const projects: Project[] = [
       "Always-on-top Game Bar overlay and fully rebindable global hotkeys",
     ],
     tech: ["C#", ".NET 9", "WPF", "FFmpeg", "ScreenRecorderLib", "NAudio"],
-    shots: [],
+    shots: [
+      "/portfolio/Screenshot_3.png",
+      "/portfolio/Screenshot_1.png",
+      "/portfolio/9.png",
+      "/portfolio/13.png",
+      "/portfolio/11.png",
+      "/portfolio/10.png",
+    ],
     links: [],
   },
   {
