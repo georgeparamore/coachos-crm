@@ -140,11 +140,19 @@ function ProjectModal({
   onClose: () => void;
 }) {
   const [shot, setShot] = useState(0);
+  // Currently enlarged screenshot (lightbox), or null.
+  const [zoom, setZoom] = useState<string | null>(null);
   const shots = project.shots.length > 0 ? project.shots : [null];
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        // Esc closes the lightbox first, then the modal.
+        if (zoom) setZoom(null);
+        else onClose();
+        return;
+      }
+      if (zoom) return; // don't page through shots while one is enlarged
       if (e.key === "ArrowRight") setShot((s) => (s + 1) % shots.length);
       if (e.key === "ArrowLeft") setShot((s) => (s - 1 + shots.length) % shots.length);
     };
@@ -154,7 +162,7 @@ function ProjectModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [onClose, shots.length]);
+  }, [onClose, shots.length, zoom]);
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
@@ -188,7 +196,13 @@ function ProjectModal({
                 <Placeholder project={project} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={shots[shot] as string} alt={`${project.name} screenshot ${shot + 1}`} />
+                <img
+                  className="zoomable"
+                  src={shots[shot] as string}
+                  alt={`${project.name} screenshot ${shot + 1}`}
+                  title="Click to enlarge"
+                  onClick={() => setZoom(shots[shot] as string)}
+                />
               )}
               {shots.length > 1 && (
                 <>
@@ -265,6 +279,16 @@ function ProjectModal({
             )}
           </div>
         </div>
+
+        {zoom && (
+          <div className="lightbox" onClick={() => setZoom(null)} role="dialog" aria-modal="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={zoom} alt={`${project.name} screenshot, enlarged`} />
+            <button className="lightbox-close" onClick={() => setZoom(null)} aria-label="Close enlarged view">
+              ✕
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
