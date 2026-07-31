@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./portfolio.css";
 import { COMPANY } from "./projects";
 
-// Set NEXT_PUBLIC_SITE_URL in your deployment to your real domain so the
-// canonical URL and social-share (Open Graph) links resolve correctly.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://fullcirclelabs.com";
+// Canonical site URL. Defaults to the live domain; override with
+// NEXT_PUBLIC_SITE_URL in the deployment if it ever changes.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://fcorbits.com";
 const DESCRIPTION =
   "Full Circle Labs is a software studio. We design, build, and ship custom software, websites, and mobile apps — from first sketch to launch.";
 
