@@ -32,6 +32,7 @@
     radial-gradient(420px 420px at 20% 30%, rgba(127, 119, 221, 0.16), transparent 70%),
     radial-gradient(520px 520px at 82% 68%, rgba(74, 137, 220, 0.14), transparent 70%),
     radial-gradient(360px 360px at 60% 12%, rgba(197, 108, 214, 0.1), transparent 70%);
+  filter: blur(6px);
   animation: nebula-drift 44s ease-in-out infinite alternate;
 }
 
@@ -100,11 +101,9 @@
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
-  /* Solid-ish panel instead of a live backdrop blur: the frosted-glass
-     effect looks near-identical over the dark starfield but costs a fraction
-     on the GPU — critical for smoothness on Retina/HiDPI (Mac) where blurring
-     moving elements every frame is very expensive. */
-  background: linear-gradient(180deg, rgba(26, 28, 52, 0.9), rgba(13, 14, 30, 0.92));
+  background: linear-gradient(180deg, rgba(24, 26, 48, 0.72), rgba(12, 13, 28, 0.72));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   box-shadow:
     0 20px 50px -20px rgba(0, 0, 0, 0.7),
     0 0 0 1px rgba(255, 255, 255, 0.04) inset,
@@ -114,12 +113,9 @@
   overflow: hidden;
   text-align: left;
   transform: translate3d(0, 0, 0);
-  /* Calm mode: windows hold their scattered positions instead of drifting
-     nonstop. Removing the infinite animation (and the permanent layer
-     promotion from will-change) means the GPU isn't recompositing five
-     moving layers every frame — smooth even on lower-powered / throttled
-     machines. The hover lift below still animates on demand. */
+  animation: float-window var(--float-dur, 24s) ease-in-out var(--float-delay, 0s) infinite;
   transition: transform 0.25s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  will-change: transform;
 }
 
 .proj-window:hover,
@@ -131,6 +127,7 @@
     0 0 48px -4px color-mix(in srgb, var(--accent) 80%, transparent);
   outline: none;
   z-index: 5;
+  animation-play-state: paused;
   transform: translateY(-8px) scale(1.07);
 }
 
@@ -303,9 +300,9 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(4, 4, 12, 0.82);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  background: rgba(4, 4, 12, 0.68);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   animation: fade-in 0.2s ease;
 }
 

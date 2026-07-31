@@ -29,9 +29,6 @@ export default function Starfield() {
     let width = 0;
     let height = 0;
     let dpr = 1;
-    // Throttle the starfield to ~30fps — twinkle and slow drift don't need
-    // 60fps, and halving the redraw rate is a big win on HiDPI screens.
-    const FRAME_MS = 1000 / 30;
 
     type Star = {
       x: number;
@@ -61,7 +58,7 @@ export default function Starfield() {
 
     function buildStars() {
       // Density scales with screen area but is capped for performance.
-      const count = Math.min(150, Math.floor((width * height) / 12000));
+      const count = Math.min(340, Math.floor((width * height) / 6500));
       stars = Array.from({ length: count }, () => {
         const depth = Math.random();
         return {
@@ -78,9 +75,7 @@ export default function Starfield() {
     }
 
     function resize() {
-      // Render at native 1x. On Retina/HiDPI (Mac) a 2x canvas is 4x the
-      // pixels to fill each frame for no meaningful gain on tiny stars.
-      dpr = 1;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
       width = window.innerWidth;
       height = window.innerHeight;
       cv.width = Math.floor(width * dpr);
@@ -117,10 +112,7 @@ export default function Starfield() {
     let raf = 0;
 
     function frame(now: number) {
-      raf = requestAnimationFrame(frame);
-      const elapsed = now - last;
-      if (elapsed < FRAME_MS) return; // throttle to ~30fps
-      const dt = Math.min(50, elapsed); // ms, clamped
+      const dt = Math.min(50, now - last); // ms, clamped
       last = now;
 
       c2d.clearRect(0, 0, width, height);
@@ -140,6 +132,14 @@ export default function Starfield() {
           c2d.fillStyle = `hsla(${s.hue}, 90%, ${light}, ${alpha})`;
         }
         c2d.fill();
+
+        // A subtle glow on the brightest near stars.
+        if (s.depth > 0.82) {
+          c2d.beginPath();
+          c2d.arc(s.x, s.y, s.r * 2.6, 0, Math.PI * 2);
+          c2d.fillStyle = `rgba(255,255,255,${alpha * 0.12})`;
+          c2d.fill();
+        }
       }
 
       // Comets
@@ -197,6 +197,8 @@ export default function Starfield() {
           }
         }
       }
+
+      raf = requestAnimationFrame(frame);
     }
 
     function speedMag(c: Comet) {
