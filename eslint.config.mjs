@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Standalone Full Circle Labs site — its own project, built separately.
+    "full-circle-labs/**",
   ]),
 ]);
 
