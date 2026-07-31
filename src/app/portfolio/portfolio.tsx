@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Starfield from "./starfield";
-import { OWNER, projects, type Project } from "./projects";
+import { COMPANY, projects, services, type Project } from "./projects";
+import { LogoMark, LogoLockup } from "./logo";
+import ContactForm from "./contact-form";
 
 // Deterministic pseudo-random from a string so window positions are stable
 // across renders but feel scattered.
@@ -268,7 +270,160 @@ function ProjectModal({
   );
 }
 
-export default function Portfolio() {
+const NAV_LINKS = [
+  { href: "#services", label: "Services" },
+  { href: "#work", label: "Work" },
+  { href: "#about", label: "About" },
+];
+
+function Nav() {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  return (
+    <nav className={`site-nav ${scrolled ? "scrolled" : ""}`}>
+      <a href="#top" className="nav-logo" aria-label="Full Circle Labs — home">
+        <LogoLockup size={30} />
+      </a>
+      <div className="nav-links">
+        {NAV_LINKS.map((l) => (
+          <a key={l.href} href={l.href}>
+            {l.label}
+          </a>
+        ))}
+        <a href="#contact" className="btn-primary btn-sm">
+          Start a project
+        </a>
+      </div>
+    </nav>
+  );
+}
+
+function Hero() {
+  return (
+    <header className="hero" id="top">
+      <div className="hero-mark">
+        <LogoMark size={104} animate />
+      </div>
+      <p className="hero-eyebrow">{COMPANY.eyebrow}</p>
+      <h1 className="hero-headline">{COMPANY.headline}</h1>
+      <p className="hero-subhead">{COMPANY.subhead}</p>
+      <div className="hero-cta">
+        <a href="#contact" className="btn-primary">
+          Start a project
+        </a>
+        <a href="#work" className="btn-ghost">
+          See our work
+        </a>
+      </div>
+    </header>
+  );
+}
+
+function Services() {
+  return (
+    <section className="services" id="services" aria-label="Services">
+      <div className="section-head">
+        <p className="section-eyebrow">What we do</p>
+        <h2 className="section-title">Full-stack, full circle.</h2>
+        <p className="section-lead">
+          One studio for the whole build — strategy, design, and engineering across web, mobile,
+          and everything in between.
+        </p>
+      </div>
+      <div className="service-grid">
+        {services.map((s) => (
+          <article className="service-card" key={s.id}>
+            <span className="service-glyph" aria-hidden="true">
+              {s.glyph}
+            </span>
+            <h3>{s.title}</h3>
+            <p>{s.blurb}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Work({
+  layout,
+  onOpen,
+}: {
+  layout: ReturnType<typeof useLayout>;
+  onOpen: (p: Project) => void;
+}) {
+  return (
+    <section className="work" id="work" aria-label="Our work">
+      <div className="section-head">
+        <p className="section-eyebrow">Selected work</p>
+        <h2 className="section-title">Things we&apos;ve built.</h2>
+        <p className="section-lead">
+          A few projects drifting in orbit — click any window to take a closer look.
+        </p>
+      </div>
+      <div
+        className="window-field"
+        style={{
+          // Height adapts to the number of rows so the field isn't sparse.
+          // Routed through a CSS var so the mobile stacked layout can override.
+          ["--field-min" as string]: `${Math.ceil(projects.length / 3) * 46 + 20}vh`,
+        }}
+      >
+        {layout.map((d) => (
+          <ProjectWindow key={d.project.id} data={d} onOpen={onOpen} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function About() {
+  return (
+    <section className="about" id="about" aria-label="About">
+      <div className="about-inner">
+        <p className="section-eyebrow">Who we are</p>
+        <h2 className="section-title">{COMPANY.aboutTitle}</h2>
+        <p className="about-body">{COMPANY.about}</p>
+      </div>
+    </section>
+  );
+}
+
+function Contact() {
+  return (
+    <section className="contact" id="contact" aria-label="Contact">
+      <div className="contact-inner">
+        <div className="contact-copy">
+          <p className="section-eyebrow">{COMPANY.contactEyebrow}</p>
+          <h2 className="section-title">{COMPANY.contactTitle}</h2>
+          <p className="section-lead">{COMPANY.contactBlurb}</p>
+          <a href={`mailto:${COMPANY.email}`} className="contact-email">
+            {COMPANY.email}
+          </a>
+        </div>
+        <ContactForm />
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="site-footer">
+      <LogoLockup size={26} />
+      <span className="footer-copy">
+        © {new Date().getFullYear()} {COMPANY.name}. Building software, full circle.
+      </span>
+    </footer>
+  );
+}
+
+export default function FullCircleLabs() {
   const layout = useLayout();
   const [active, setActive] = useState<Project | null>(null);
 
@@ -280,31 +435,13 @@ export default function Portfolio() {
       <Starfield />
       <div className="nebula" aria-hidden="true" />
 
-      <header className="intro">
-        <p className="intro-eyebrow">Portfolio</p>
-        <h1 className="intro-name">{OWNER.name}</h1>
-        <p className="intro-role">{OWNER.role}</p>
-        <p className="intro-text">{OWNER.intro}</p>
-      </header>
-
-      <section
-        className="window-field"
-        aria-label="Projects"
-        style={{
-          // Height adapts to the number of rows so the field isn't sparse
-          // with few projects. Routed through a CSS var so the mobile
-          // stacked-layout media query can still override it.
-          ["--field-min" as string]: `${Math.ceil(projects.length / 3) * 46 + 24}vh`,
-        }}
-      >
-        {layout.map((d) => (
-          <ProjectWindow key={d.project.id} data={d} onOpen={open} />
-        ))}
-      </section>
-
-      <footer className="space-footer">
-        <span>{projects.length} projects · drifting in orbit</span>
-      </footer>
+      <Nav />
+      <Hero />
+      <Services />
+      <Work layout={layout} onOpen={open} />
+      <About />
+      <Contact />
+      <Footer />
 
       {active && <ProjectModal project={active} onClose={close} />}
     </main>

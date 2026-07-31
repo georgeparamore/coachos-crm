@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import "./portfolio.css";
-import Portfolio from "./portfolio";
-import { OWNER } from "./projects";
+import FullCircleLabs from "./portfolio";
+import { COMPANY } from "./projects";
 
 export const metadata: Metadata = {
-  title: `${OWNER.name} — Projects in Space`,
+  title: `${COMPANY.name} — Software studio`,
   description:
-    "A space-themed portfolio of programs, websites and things I've built. Each project floats as a window — click one to explore screenshots and details.",
+    "Full Circle Labs is a software studio. We design, build, and ship custom software, websites, and mobile apps — from first sketch to launch.",
 };
 
-export default function PortfolioPage() {
-  return <Portfolio />;
+export default function Page() {
+  return <FullCircleLabs />;
 }

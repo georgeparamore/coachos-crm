@@ -44,6 +44,65 @@ export const OWNER = {
     "A collection of programs, websites, and experiments I've built. Each window is a project drifting through space — click one to take a closer look.",
 };
 
+// ─── Company (Full Circle Labs) ──────────────────────────────────────────────
+
+export const COMPANY = {
+  name: "Full Circle Labs",
+  // Hero
+  eyebrow: "Software studio",
+  headline: "We build software that comes full circle.",
+  subhead:
+    "Full Circle Labs is a software studio. We design, build, and ship custom software, websites, and mobile apps — from the first sketch to launch, and every orbit after.",
+  // About
+  aboutTitle: "A studio that ships",
+  about:
+    "We're a small, hands-on studio that takes projects the whole way around — idea, design, build, launch, and the iteration that follows. No handoffs to a team that never touched the code; the people who plan it are the people who build it. Everything on this page, we made.",
+  // Contact
+  contactEyebrow: "Start a project",
+  contactTitle: "Tell us what you're building.",
+  contactBlurb:
+    "Send over the shape of it — what you need, roughly when, and any budget in mind. We'll get back to you within a couple of days.",
+  email: "iamgeorgeparamore@gmail.com",
+};
+
+export type Service = {
+  id: string;
+  title: string;
+  glyph: string;
+  blurb: string;
+};
+
+export const services: Service[] = [
+  {
+    id: "software",
+    title: "Custom software",
+    glyph: "🛠️",
+    blurb:
+      "Bespoke apps, internal tools, and SaaS platforms built around how you actually work — not a template bent to fit.",
+  },
+  {
+    id: "web",
+    title: "Websites & web apps",
+    glyph: "🌐",
+    blurb:
+      "Fast, modern marketing sites and web apps that look sharp, convert, and scale as you grow.",
+  },
+  {
+    id: "mobile",
+    title: "Mobile apps",
+    glyph: "📱",
+    blurb:
+      "Native iOS and Android apps that feel right on the device, from camera-driven tools to full products.",
+  },
+  {
+    id: "automation",
+    title: "Automation & AI",
+    glyph: "⚡",
+    blurb:
+      "Workflow automation and AI features that cut the busywork — integrations, pipelines, and smart tooling.",
+  },
+];
+
 export const projects: Project[] = [
   {
     id: "coachos",
