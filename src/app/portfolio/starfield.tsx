@@ -58,7 +58,7 @@ export default function Starfield() {
 
     function buildStars() {
       // Density scales with screen area but is capped for performance.
-      const count = Math.min(340, Math.floor((width * height) / 6500));
+      const count = Math.min(220, Math.floor((width * height) / 9000));
       stars = Array.from({ length: count }, () => {
         const depth = Math.random();
         return {
@@ -75,7 +75,10 @@ export default function Starfield() {
     }
 
     function resize() {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // Cap render density: on Retina/HiDPI (Mac) a 2x canvas is 4x the pixels
+      // to fill each frame for no visible gain on a starfield. 1.5 keeps stars
+      // crisp while roughly halving fill cost vs 2x.
+      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       width = window.innerWidth;
       height = window.innerHeight;
       cv.width = Math.floor(width * dpr);
