@@ -162,6 +162,42 @@ export const projects: Project[] = [
     shots: ["/portfolio/discord-formatter.png"],
     links: [],
   },
+  {
+    id: "sejuiceme",
+    name: "SeJuice Me",
+    tagline: "Brand & storefront for a cold-pressed juice company",
+    accent: "#3fb56a",
+    glyph: "🧃",
+    size: "md",
+    description:
+      "A brand site and demo storefront for SeJuice Me, a cold-pressed juice company — “Pure Plants. Real Life.” It tells the brand story, shows off the product line, and runs a full ordering flow, all in a clean, natural aesthetic.",
+    highlights: [
+      "Full brand landing — hero, values, and story sections around a cold-pressed juice line",
+      "Five products (Green Glow, Citrus Burst, Root Revive, Fruit Delight, Daily Greens Elixir) with a shop and cart",
+      "Live ordering-flow demo — browse, add to cart, and check out (preview, no real payment)",
+    ],
+    tech: ["Next.js", "React", "Vercel"],
+    shots: [],
+    links: [{ label: "Visit site", href: "https://sejuiceme.vercel.app/" }],
+  },
+  {
+    id: "realestate-crm",
+    name: "Real Estate CRM",
+    tagline: "A lead-first CRM built for a real estate agent",
+    accent: "#2f9e8a",
+    glyph: "🏡",
+    size: "md",
+    description:
+      "A custom CRM demo built for a real estate agent (RReyes Realty Group). It puts the day's leads front and center — who to call, showings on the books, and the hot prospects — so an agent can work their whole pipeline at a glance.",
+    highlights: [
+      "Dashboard of daily priorities — leads to call, scheduled showings, and hot leads, with quick auto-dial",
+      "Lead management by status (hot, new, in conversation, follow-up) with buying/selling context and one-tap call",
+      "Listings and calendar modules for property inventory and showing coordination",
+    ],
+    tech: ["Next.js", "React", "Supabase", "Vercel"],
+    shots: [],
+    links: [{ label: "Visit demo", href: "https://coachos-drab.vercel.app/realestate-demo" }],
+  },
 
   // ───────────────────────────────────────────────────────────────────────
   // TODO: two local projects to flesh out from George's description —
