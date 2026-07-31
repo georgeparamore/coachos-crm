@@ -120,7 +120,16 @@ export const projects: Project[] = [
       "Calendar, reminders and a live client dashboard",
     ],
     tech: ["Next.js 16", "React 19", "TypeScript", "Supabase", "Stripe", "Tailwind"],
-    shots: [],
+    shots: [
+      "/portfolio/dashboard.png",
+      "/portfolio/crm.png",
+      "/portfolio/deals.png",
+      "/portfolio/subscriptions.png",
+      "/portfolio/invoices.png",
+      "/portfolio/courses.png",
+      "/portfolio/community.png",
+      "/portfolio/dashboarddark.png",
+    ],
     links: [],
   },
   {
