@@ -402,9 +402,6 @@ function Contact() {
           <p className="section-eyebrow">{COMPANY.contactEyebrow}</p>
           <h2 className="section-title">{COMPANY.contactTitle}</h2>
           <p className="section-lead">{COMPANY.contactBlurb}</p>
-          <a href={`mailto:${COMPANY.email}`} className="contact-email">
-            {COMPANY.email}
-          </a>
         </div>
         <ContactForm />
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { services, COMPANY } from "./projects";
+import { services } from "./projects";
 
 type Status = "idle" | "sending" | "sent" | "error";
 
@@ -43,11 +43,7 @@ export default function ContactForm() {
           ✓
         </div>
         <h3>Message sent</h3>
-        <p>
-          Thanks — we&apos;ve got it and will get back to you within a couple of days. In the
-          meantime you can also reach us at{" "}
-          <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>.
-        </p>
+        <p>Thanks — we&apos;ve got it and will get back to you within a couple of days.</p>
         <button type="button" className="btn-ghost" onClick={() => setStatus("idle")}>
           Send another
         </button>
@@ -132,8 +128,7 @@ export default function ContactForm() {
 
       {status === "error" && (
         <p className="form-error" role="alert">
-          {error} You can also email us at{" "}
-          <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>.
+          {error}
         </p>
       )}
 
