@@ -337,6 +337,16 @@ a {
   padding: 5px 12px;
   font-size: 12px;
 }
+.btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .btn-accent {
   background: var(--accent);
   color: #fff;
@@ -429,6 +439,16 @@ a {
   align-items: baseline;
   justify-content: space-between;
   padding: 6px 0;
+}
+.mini-stat-row svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .mini-stat-label {
   font-size: 12.5px;
@@ -1857,5 +1877,437 @@ select.form-input {
   .rd-call-btn {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   Community / course-platform concept demo ("cp-" prefix)
+   ========================================================================== */
+.cp-shell {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.cp-topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 32px;
+  border-bottom: 0.5px solid var(--border);
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+.cp-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.cp-brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+.cp-demo-badge {
+  font-weight: 500;
+}
+.cp-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cp-nav {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.cp-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: 13.5px;
+}
+.cp-nav-link svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cp-nav-link:hover {
+  background: var(--surface2);
+}
+.cp-nav-link-active {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+  font-weight: 500;
+}
+.cp-main {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Home: stats strip */
+.cp-stats-strip {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  padding: 4px 0 18px;
+  border-bottom: 0.5px solid var(--border);
+}
+.cp-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cp-stat-value {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cp-stat-label {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.cp-lead-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.cp-lead-summary {
+  font-size: 13px;
+  color: var(--text-2);
+  margin: 6px 0;
+  line-height: 1.5;
+}
+
+/* Progress bars (course completion) */
+.cp-progress-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 4px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+.cp-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+/* Course cover swatches (stand in for uploaded thumbnails) */
+.cp-course-swatch {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cp-course-swatch svg,
+.cp-course-cover svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: currentColor;
+  stroke-width: 0;
+}
+.cp-course-cover {
+  height: 100px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.cp-course-cover svg,
+.cp-course-swatch svg {
+  width: 22px;
+  height: 22px;
+}
+.cp-swatch-purple {
+  background: var(--purple-bg);
+  color: var(--purple-text);
+}
+.cp-swatch-teal {
+  background: var(--teal-bg);
+  color: var(--teal-text);
+}
+.cp-swatch-amber {
+  background: var(--amber-bg);
+  color: var(--amber-text);
+}
+.cp-swatch-blue {
+  background: var(--blue-bg);
+  color: var(--blue-text);
+}
+
+/* Home: continue-learning rows */
+.cp-continue-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 0.5px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+}
+.cp-continue-row:last-child {
+  border-bottom: none;
+}
+.cp-highlight-row {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.cp-highlight-row:last-child {
+  border-bottom: none;
+}
+.cp-member-strip {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.cp-member-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+/* Classroom grid */
+.cp-course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+.cp-course-card {
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+  display: block;
+}
+
+/* Course player */
+.cp-player-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .cp-player-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.cp-video-frame {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  background: #000;
+}
+.cp-video-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+.cp-lesson-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 6px;
+  border: none;
+  background: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.cp-lesson-row:hover {
+  background: var(--surface2);
+}
+.cp-lesson-row-active {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+}
+.cp-lesson-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface2);
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.cp-lesson-check svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 3;
+}
+.cp-lesson-check-done {
+  background: var(--success);
+  color: #fff;
+}
+
+/* Community feed */
+.cp-feed-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .cp-feed-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.cp-composer textarea {
+  min-height: 60px;
+}
+.cp-composer-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+.cp-category-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.cp-post-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.cp-post-content {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.55;
+  margin: 0 0 10px;
+}
+.cp-post-actions {
+  display: flex;
+  gap: 8px;
+}
+.cp-comments {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cp-comment {
+  display: flex;
+  gap: 10px;
+}
+.cp-comment-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.cp-comment-form input {
+  flex: 1;
+}
+
+/* Members */
+.cp-member-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+.cp-member-card {
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.cp-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+/* Admin: live streaming */
+.cp-live-platforms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.cp-platform-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cp-platform-card svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--accent);
+  fill: none;
+  stroke-width: 2;
+}
+
+@media (max-width: 720px) {
+  .cp-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 16px;
+    gap: 10px;
+  }
+  .cp-brand {
+    justify-content: space-between;
+  }
+  .cp-nav {
+    justify-content: space-between;
+  }
+  .cp-nav-link {
+    padding: 8px 6px;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 11.5px;
+    flex: 1;
+    text-align: center;
   }
 }
