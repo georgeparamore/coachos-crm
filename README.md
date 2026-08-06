@@ -76,6 +76,38 @@ retiring the mockup).
       auth sessions to test meaningfully; a local Postgres stub can prove the schema applies
       but not that the policies hold up under real JWTs)
 
+### Phase 4 — Meta Ads performance and CRM attribution
+
+- [x] "Connect Meta" OAuth flow: `/api/meta/connect` (coach-only, signed CSRF state) →
+      Meta's OAuth dialog → `/api/meta/callback` (exchanges code for a long-lived token,
+      encrypts it at the application layer on top of `meta_connections`' service-role-only
+      RLS, fetches + stores the coach's ad accounts)
+  - Note: `ads_read` currently requested, per the account discovery approach in
+    `src/lib/meta/client.ts` — `business_management` may need adding if ad-account discovery
+    comes back empty for an account only reachable via a Business Manager the coach doesn't
+    personally admin. First thing to check once real credentials are in.
+- [x] `/api/meta/disconnect`: best-effort revokes the token with Meta, then always clears the
+      local copy and marks the connection disconnected (never trust the remote revoke call
+      alone)
+- [x] Settings page shows real connection status (`src/components/meta-connection-row.tsx`) —
+      Connect/Disconnect buttons, connected ad account name, inline success/error banners
+- [x] Versioned Marketing API client (`src/lib/meta/client.ts`): token exchange, ad accounts,
+      campaigns, daily insights — timeout-bounded, one retry on 429/5xx, paginated
+- [ ] **Not yet tested against real Meta data** — no live app/credentials existed while this
+      was written. First real-data checks needed: does `ads_read` alone surface the right ad
+      accounts; is the `actions` → lead-count mapping in `fetchDailyInsights` correct for this
+      account's campaign types (see the comment in that function)
+- [ ] Sync job (incremental campaign/insight caching into `meta_campaigns` /
+      `meta_ad_insights_daily`, so the dashboard reads cache instead of calling Meta live) —
+      not built yet
+- [ ] Ad performance dashboard UI reading the cached tables — not built yet (the
+      `/community-demo/admin/ads` mockup is the UX reference, per
+      `docs/community-demo-inventory.md`)
+- [ ] Ad-account picker UI for coaches with more than one ad account (auto-selected today only
+      when there's exactly one)
+- [ ] Scheduled production sync (Vercel Cron or equivalent) — deliberately deferred until the
+      connect flow itself is verified working end-to-end
+
 ## Demo login
 
 To let visitors try CoachOS without creating an account, add a "Try the demo" button to `/login`:

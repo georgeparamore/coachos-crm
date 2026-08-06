@@ -32,7 +32,9 @@ create table if not exists public.meta_connections (
   coach_id uuid not null references public.profiles (id) on delete cascade,
   meta_user_id text not null,
   status public.meta_connection_status not null default 'active',
-  access_token_encrypted text not null,
+  -- Nullable: a disconnect clears this (revokes locally, best-effort revokes
+  -- with Meta too) while keeping the row for connection history.
+  access_token_encrypted text,
   token_expires_at timestamptz,
   scopes text[] not null default '{}',
   connected_at timestamptz not null default now(),

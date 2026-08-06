@@ -1,9 +1,25 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { BusinessProfileForm } from "@/components/business-profile-form";
 import { DataLoadError } from "@/components/data-load-error";
+import { MetaConnectionRow } from "@/components/meta-connection-row";
 import { logServerError } from "@/lib/log-server-error";
 
-export default async function SettingsPage() {
+const META_ERROR_MESSAGES: Record<string, string> = {
+  declined: "Meta connection was cancelled.",
+  missing_params: "Meta didn't return the expected response — try connecting again.",
+  invalid_state: "That connection link expired or was invalid — try connecting again.",
+  session_mismatch: "Your session changed mid-connection — try connecting again.",
+  save_failed: "Couldn't save the connection — try again, or check the error log if it keeps happening.",
+  token_exchange_failed: "Meta rejected the connection request — try again.",
+};
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ meta?: string; meta_detail?: string }>;
+}) {
+  const { meta: metaStatus, meta_detail: metaDetail } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -15,6 +31,28 @@ export default async function SettingsPage() {
     .single();
 
   if (error) await logServerError(error, "settings.load", { userId: user!.id, userEmail: user!.email });
+
+  // meta_connections is service-role-only (holds encrypted token material) —
+  // read here with the service client, but only ever expose the derived
+  // connected/account-name shape below, never the row itself.
+  const service = createServiceClient();
+  const { data: metaConnection } = await service
+    .from("meta_connections")
+    .select("id, status")
+    .eq("coach_id", user!.id)
+    .eq("status", "active")
+    .maybeSingle();
+
+  let metaAdAccountName: string | null = null;
+  if (metaConnection) {
+    const { data: selectedAccount } = await service
+      .from("meta_ad_accounts")
+      .select("name")
+      .eq("connection_id", metaConnection.id)
+      .eq("is_selected", true)
+      .maybeSingle();
+    metaAdAccountName = selectedAccount?.name ?? null;
+  }
 
   const integrations = [
     { name: "Stripe", sub: "Subscriptions & payments", envVar: "STRIPE_SECRET_KEY" },
@@ -34,6 +72,19 @@ export default async function SettingsPage() {
 
       {error && <DataLoadError what="your profile" />}
 
+      {metaStatus === "connected" && (
+        <div className="card" style={{ background: "var(--green-bg)", border: "none" }}>
+          <span style={{ color: "var(--green-text)" }}>Meta Ads connected.</span>
+        </div>
+      )}
+      {metaStatus === "error" && (
+        <div className="card" style={{ background: "var(--red-bg)", border: "none" }}>
+          <span style={{ color: "var(--red-text)" }}>
+            {(metaDetail && META_ERROR_MESSAGES[metaDetail]) || "Couldn't connect Meta Ads — try again."}
+          </span>
+        </div>
+      )}
+
       <div className="two-col">
         <div className="card">
           <div className="card-title">Business profile</div>
@@ -47,6 +98,7 @@ export default async function SettingsPage() {
         <div>
           <div className="card">
             <div className="card-title">Integrations</div>
+            <MetaConnectionRow connected={Boolean(metaConnection)} adAccountName={metaAdAccountName} />
             {integrations.map((integration) => (
               <div className="list-row" key={integration.name}>
                 <div className="list-row-left">
