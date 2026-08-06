@@ -15,9 +15,10 @@ same tokens, same layout, same components.
 | Framework | Next.js 16 (App Router, TypeScript) |
 | Database & auth | Supabase |
 | Payments & subscriptions | Stripe (Phase 2) |
-| Video hosting & streaming | Bunny.net (Phase 3) |
+| Ad performance | Meta Marketing API (Phase 4) |
+| Video hosting & streaming | Bunny Stream (Phase 5) |
+| Email/notifications | Resend (Phase 7) |
 | App hosting | Vercel or Railway |
-| Email/notifications | SMTP via Resend or similar (Phase 4) |
 
 ## Phase 1 — Foundation
 
@@ -43,7 +44,37 @@ same tokens, same layout, same components.
 - [x] Dashboard shows today's date in the greeting and a "Today's schedule" card
 - [x] In-tab reminders via the browser Notification API — fires while the dashboard/calendar tab is
       open, does **not** work if the tab/browser is closed (that needs a background job + push
-      subscription, which is Phase 4 territory alongside email notifications)
+      subscription — see Phase 7 below)
+
+## Roadmap (Phases 3–8)
+
+Everything past Phase 2 follows a phased plan drafted after a `/community-demo` concept
+mockup (a static, unauthenticated UX exploration — see `docs/community-demo-inventory.md`
+for what in it is real-build reference vs. throwaway) surfaced the shape of courses,
+community, and a new Meta (Facebook/Instagram) Ads integration requirement. The full plan
+lives at `docs/phased-build-plan.md`; the product/technical decisions it locks in (and why)
+are recorded in `docs/architecture-decisions.md`. Short version: **Phase 4 (Meta Ads) ships
+before Phase 5 (Courses)** since it's the new business driver and has external approval lead
+time, then Phase 6 (Community), Phase 7 (background notifications/email), Phase 8 (hardening +
+retiring the mockup).
+
+### Phase 3 — Product foundation and schema contracts
+
+- [x] Decisions locked and documented: `docs/architecture-decisions.md`
+- [x] `/community-demo` screens inventoried and mapped to real routes/later phases/retire:
+      `docs/community-demo-inventory.md`
+- [x] Migrations designed for coach/client memberships, platform admins, courses, community,
+      notifications, and Meta Ads — written and verified to apply cleanly against a local
+      Postgres instance, **not yet applied to any real Supabase project**:
+      `0007_memberships.sql`, `0008_courses.sql`, `0009_community.sql`,
+      `0010_notifications.sql`, `0011_meta_ads.sql`
+- [ ] Feature-flag/config strategy so Meta/Bunny/community/notifications can be toggled per
+      environment
+- [ ] `ADMIN_EMAIL` env-var check migrated to the new `platform_admins` table (table exists;
+      call sites — currently gating `/admin/errors` — not yet updated)
+- [ ] Two-coach RLS acceptance fixtures exercised against a real Supabase project (needs real
+      auth sessions to test meaningfully; a local Postgres stub can prove the schema applies
+      but not that the policies hold up under real JWTs)
 
 ## Demo login
 
