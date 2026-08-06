@@ -2,11 +2,14 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import {
+  AD_CAMPAIGNS,
   COURSES,
   EVENTS,
   LEADS,
   MEMBERS,
   POSTS,
+  type AdCampaignStatus,
+  type DemoAdCampaign,
   type DemoComment,
   type DemoCourse,
   type DemoEvent,
@@ -56,6 +59,13 @@ type StoreValue = {
   updateLeadStatus: (id: string, status: LeadStatus) => void;
   emailedLeadIds: Set<string>;
   markLeadEmailed: (id: string) => void;
+
+  // Ad performance (admin) — placeholder for a future Meta Marketing API connection
+  adsConnected: boolean;
+  connectAds: () => void;
+  disconnectAds: () => void;
+  campaigns: DemoAdCampaign[];
+  setCampaignStatus: (id: string, status: AdCampaignStatus) => void;
 };
 
 const CommunityDemoContext = createContext<StoreValue | null>(null);
@@ -68,6 +78,8 @@ export function CommunityDemoProvider({ children }: { children: React.ReactNode 
   const [events, setEvents] = useState<DemoEvent[]>(EVENTS);
   const [leads, setLeads] = useState<DemoLead[]>(LEADS);
   const [emailedLeadIds, setEmailedLeadIds] = useState<Set<string>>(new Set());
+  const [adsConnected, setAdsConnected] = useState(false);
+  const [campaigns, setCampaigns] = useState<DemoAdCampaign[]>(AD_CAMPAIGNS);
 
   // A handful of lessons are pre-completed so the classroom demo doesn't open empty.
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(
@@ -160,6 +172,13 @@ export function CommunityDemoProvider({ children }: { children: React.ReactNode 
     setEmailedLeadIds((prev) => new Set(prev).add(id));
   }, []);
 
+  const connectAds = useCallback(() => setAdsConnected(true), []);
+  const disconnectAds = useCallback(() => setAdsConnected(false), []);
+
+  const setCampaignStatus = useCallback((id: string, status: AdCampaignStatus) => {
+    setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
+  }, []);
+
   const value = useMemo<StoreValue>(
     () => ({
       view,
@@ -185,6 +204,11 @@ export function CommunityDemoProvider({ children }: { children: React.ReactNode 
       updateLeadStatus,
       emailedLeadIds,
       markLeadEmailed,
+      adsConnected,
+      connectAds,
+      disconnectAds,
+      campaigns,
+      setCampaignStatus,
     }),
     [
       view,
@@ -209,6 +233,11 @@ export function CommunityDemoProvider({ children }: { children: React.ReactNode 
       updateLeadStatus,
       emailedLeadIds,
       markLeadEmailed,
+      adsConnected,
+      connectAds,
+      disconnectAds,
+      campaigns,
+      setCampaignStatus,
     ],
   );
 

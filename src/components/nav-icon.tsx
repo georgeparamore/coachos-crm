@@ -142,6 +142,19 @@ const PATHS: Record<string, React.ReactNode> = {
       <polyline points="17 6 23 6 23 12" />
     </>
   ),
+  megaphone: (
+    <>
+      <path d="M3 11v3a1 1 0 0 0 1 1h2l3.5 5.5a1 1 0 0 0 1.5.2V5.3a1 1 0 0 0-1.5-.8L6 10H4a1 1 0 0 0-1 1z" />
+      <path d="M13 7.5a6 6 0 0 1 0 9" />
+      <path d="M16.5 5a10 10 0 0 1 0 14" />
+    </>
+  ),
+  link: (
+    <>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </>
+  ),
 };
 
 export function NavIcon({ name }: { name: string }) {

@@ -60,6 +60,20 @@ export type DemoPost = {
   comments: DemoComment[];
 };
 
+export type AdCampaignStatus = "active" | "paused" | "ended";
+
+export type DemoAdCampaign = {
+  id: string;
+  name: string;
+  platform: "facebook" | "instagram";
+  status: AdCampaignStatus;
+  spend: number; // dollars, last 30 days
+  impressions: number;
+  clicks: number;
+  leads: number;
+  startDate: string; // "YYYY-MM-DD"
+};
+
 export type EventType = "live-call" | "workshop" | "deadline" | "community";
 export type StreamPlatform = "google-meet" | "zoom" | "native";
 
@@ -401,6 +415,67 @@ export const LEADS: DemoLead[] = [
     joinedAt: "2026-07-31",
     note: "Signed up for the newsletter from the pricing page.",
   },
+];
+
+// Placeholder ad-performance data — stands in for what a real Meta Marketing
+// API connection would return. Nothing here talks to Facebook; it's canned
+// content to demo the shape of an ads dashboard before the real OAuth +
+// API integration is built.
+export const AD_CAMPAIGNS: DemoAdCampaign[] = [
+  {
+    id: "camp1",
+    name: "Group Program Launch — Cold Audience",
+    platform: "facebook",
+    status: "active",
+    spend: 1240,
+    impressions: 84200,
+    clicks: 1340,
+    leads: 42,
+    startDate: "2026-07-14",
+  },
+  {
+    id: "camp2",
+    name: "Retargeting — Website Visitors",
+    platform: "facebook",
+    status: "active",
+    spend: 410,
+    impressions: 21000,
+    clicks: 610,
+    leads: 18,
+    startDate: "2026-07-20",
+  },
+  {
+    id: "camp3",
+    name: "Free Workshop Signups",
+    platform: "instagram",
+    status: "active",
+    spend: 260,
+    impressions: 33500,
+    clicks: 590,
+    leads: 22,
+    startDate: "2026-07-25",
+  },
+  {
+    id: "camp4",
+    name: "Lookalike — Past Buyers",
+    platform: "facebook",
+    status: "paused",
+    spend: 890,
+    impressions: 52000,
+    clicks: 780,
+    leads: 25,
+    startDate: "2026-06-30",
+  },
+];
+
+export const AD_SPEND_TREND = [
+  { label: "Mon", value: 142 },
+  { label: "Tue", value: 168 },
+  { label: "Wed", value: 121 },
+  { label: "Thu", value: 205 },
+  { label: "Fri", value: 189 },
+  { label: "Sat", value: 96 },
+  { label: "Sun", value: 88 },
 ];
 
 export function getMember(id: string): DemoMember | undefined {

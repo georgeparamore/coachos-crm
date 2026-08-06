@@ -10,6 +10,7 @@ const ADMIN_NAV = [
   { href: "/community-demo/admin/live", label: "Live streaming", icon: "video" },
   { href: "/community-demo/admin/students", label: "Student progress", icon: "trending-up" },
   { href: "/community-demo/admin/leads", label: "Leads", icon: "mail" },
+  { href: "/community-demo/admin/ads", label: "Ad performance", icon: "megaphone" },
   { href: "/community-demo/admin/calendar", label: "Calendar", icon: "calendar" },
 ];
 

@@ -485,6 +485,17 @@ a {
   padding: 2px 9px;
   border-radius: 20px;
 }
+.badge svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: -1px;
+}
 .badge-green {
   background: var(--green-bg);
   color: var(--green-text);
@@ -2267,6 +2278,21 @@ select.form-input {
   align-items: center;
   gap: 14px;
   margin-bottom: 12px;
+}
+
+/* Admin: connect-gate hero icon (ads, and any future "connect X" empty state) */
+.cp-connect-icon {
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.cp-connect-icon svg {
+  width: 32px;
+  height: 32px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* Admin: live streaming */
