@@ -11,34 +11,24 @@ export type NavSection = {
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    label: "Overview",
+    label: "Manage",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: "grid" },
-      { href: "/analytics", label: "Analytics", icon: "bar-chart" },
+      { href: "/dashboard", label: "Overview", icon: "grid" },
+      { href: "/courses", label: "Courses & programs", icon: "play" },
+      { href: "/community", label: "Community", icon: "message" },
+      { href: "/crm", label: "Leads", icon: "users" },
+      { href: "/ads", label: "Ad performance", icon: "bar-chart" },
       { href: "/calendar", label: "Calendar", icon: "calendar" },
     ],
   },
   {
-    label: "Clients",
+    label: "Billing",
     items: [
-      { href: "/crm", label: "CRM & pipeline", icon: "users" },
+      { href: "/analytics", label: "Analytics", icon: "bar-chart" },
       { href: "/deals", label: "Deal evaluations", icon: "file-text" },
-      { href: "/ads", label: "Ad performance", icon: "bar-chart" },
-    ],
-  },
-  {
-    label: "Monetization",
-    items: [
       { href: "/subscriptions", label: "Subscriptions", icon: "refresh" },
       { href: "/invoices", label: "Invoices", icon: "invoice" },
       { href: "/contracts", label: "Contracts", icon: "pen" },
-    ],
-  },
-  {
-    label: "Education",
-    items: [
-      { href: "/courses", label: "Courses & programs", icon: "play" },
-      { href: "/community", label: "Community", icon: "message" },
     ],
   },
   {
