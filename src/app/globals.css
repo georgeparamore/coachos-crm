@@ -2295,6 +2295,116 @@ select.form-input {
   stroke-linejoin: round;
 }
 
+/* Admin: daily welcome popup */
+.cp-welcome-card {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 340px;
+  max-width: calc(100vw - 40px);
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  z-index: 80;
+  animation: cp-welcome-in 0.35s ease;
+}
+@keyframes cp-welcome-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.cp-welcome-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  line-height: 0;
+}
+.cp-welcome-close:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+.cp-welcome-close svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+.cp-welcome-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.cp-welcome-eyebrow svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.cp-welcome-greeting {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+  padding-right: 20px;
+}
+.cp-welcome-message {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.55;
+  margin: 0 0 14px;
+}
+.cp-welcome-stats {
+  display: flex;
+  gap: 20px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--border);
+}
+.cp-welcome-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cp-welcome-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cp-welcome-stat-label {
+  font-size: 11px;
+  color: var(--text-3);
+}
+@media (max-width: 480px) {
+  .cp-welcome-card {
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+}
+
 /* Admin: live streaming */
 .cp-live-platforms {
   display: grid;

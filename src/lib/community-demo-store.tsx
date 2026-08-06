@@ -26,6 +26,7 @@ type NewCourseInput = { title: string; description: string; category: string; co
 type NewLessonInput = { title: string; durationMin: number; youtubeId: string };
 
 const CURRENT_STUDENT_ID = "m1"; // "Sarah Chen" — the logged-in learner for this demo
+const CURRENT_ADMIN_ID = "m-admin"; // "Jordan Blake" — the logged-in coach/admin for this demo
 
 type StoreValue = {
   view: ViewMode;
@@ -250,4 +251,4 @@ export function useCommunityDemo() {
   return ctx;
 }
 
-export { CURRENT_STUDENT_ID };
+export { CURRENT_STUDENT_ID, CURRENT_ADMIN_ID };

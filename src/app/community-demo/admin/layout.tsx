@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AdminNav } from "@/components/community-demo/admin-nav";
+import { WelcomePopup } from "@/components/community-demo/welcome-popup";
 
 export default function CommunityAdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -29,7 +30,10 @@ export default function CommunityAdminLayout({ children }: { children: React.Rea
           </Link>
         </div>
       </div>
-      <div className="main">{children}</div>
+      <div className="main">
+        <WelcomePopup />
+        {children}
+      </div>
     </div>
   );
 }
