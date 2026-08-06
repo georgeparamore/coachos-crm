@@ -23,6 +23,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/crm", label: "CRM & pipeline", icon: "users" },
       { href: "/deals", label: "Deal evaluations", icon: "file-text" },
+      { href: "/ads", label: "Ad performance", icon: "bar-chart" },
     ],
   },
   {

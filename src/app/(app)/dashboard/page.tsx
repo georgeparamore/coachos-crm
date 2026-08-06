@@ -11,6 +11,12 @@ import { LiveClock } from "@/components/live-clock";
 import { PreviewCard, MiniStat } from "@/components/preview-card";
 import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
+import { BarList } from "@/components/charts/bar-list";
+import { SeriesChart } from "@/components/charts/series-chart";
+
+function dayLabel(date: Date) {
+  return date.toLocaleDateString(undefined, { weekday: "short" });
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -85,6 +91,38 @@ export default async function DashboardPage() {
   const signedContracts = allContracts.filter((c) => c.status === "signed").length;
 
   const formattedDate = formatDateInZone(now, timezone);
+
+  // New leads per day, last 7 days
+  const days: Date[] = [];
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(todayStart);
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+  const signupTrend = days.map((day) => {
+    const dayEnd = new Date(day);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    const count = allLeads.filter((l) => {
+      const created = new Date(l.created_at);
+      return created >= day && created < dayEnd;
+    }).length;
+    return { label: dayLabel(day), value: count };
+  });
+
+  // Lead sources (top 5 + Other)
+  const sourceCounts = new Map<string, number>();
+  for (const lead of allLeads) {
+    const key = lead.source?.trim() || "Unspecified";
+    sourceCounts.set(key, (sourceCounts.get(key) ?? 0) + 1);
+  }
+  const sortedSources = [...sourceCounts.entries()].sort((a, b) => b[1] - a[1]);
+  const topSources = sortedSources.slice(0, 5);
+  const otherCount = sortedSources.slice(5).reduce((sum, [, count]) => sum + count, 0);
+  const sourceData = [
+    ...topSources.map(([label, value]) => ({ label, value, color: "var(--chart-trend)" })),
+    ...(otherCount > 0 ? [{ label: "Other", value: otherCount, color: "var(--text-3)" }] : []),
+  ];
 
   return (
     <div className="page">
@@ -169,6 +207,35 @@ export default async function DashboardPage() {
           <div className="metric-label">Course enrollments</div>
           <div className="metric-value">—</div>
           <div className="metric-delta delta-neutral">Connect courses in Phase 3</div>
+        </div>
+      </div>
+
+      <div className="two-col" style={{ marginBottom: 24 }}>
+        <div className="card">
+          <div className="chart-card-header">
+            <div className="card-title" style={{ marginBottom: 0 }}>
+              New leads, last 7 days
+            </div>
+            <div className="chart-headline">{signupTrend.reduce((sum, d) => sum + d.value, 0)}</div>
+          </div>
+          {allLeads.length === 0 ? (
+            <div className="empty-state">
+              <p>No leads yet — add some in the CRM to see this trend.</p>
+            </div>
+          ) : (
+            <SeriesChart points={signupTrend} color="var(--chart-trend)" mode="bar" />
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-title">Lead sources</div>
+          {sourceData.length === 0 ? (
+            <div className="empty-state">
+              <p>No leads yet.</p>
+            </div>
+          ) : (
+            <BarList data={sourceData} formatValue={(n) => String(n)} total={allLeads.length} />
+          )}
         </div>
       </div>
 
