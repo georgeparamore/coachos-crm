@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import { NavIcon } from "@/components/nav-icon";
 import { useCommunityDemo } from "@/lib/community-demo-store";
-import { LEAD_SOURCE_LABEL, LEAD_STATUS_BADGE, type DemoLead, type LeadStatus } from "@/lib/community-demo-data";
+import { LEAD_SOURCE_LABEL, LEAD_STATUS_BADGE, LEAD_STATUS_LABEL, type DemoLead, type LeadStatus } from "@/lib/community-demo-data";
 import { EmailLeadModal } from "@/components/community-demo/email-lead-modal";
 
-const STATUSES: (LeadStatus | "all")[] = ["all", "new", "contacted", "trial", "won", "lost"];
+const STATUSES: (LeadStatus | "all")[] = ["all", "new", "contacted", "follow-up", "closed"];
 
 export function LeadsTable() {
   const { leads, updateLeadStatus, emailedLeadIds, markLeadEmailed } = useCommunityDemo();
@@ -29,7 +29,7 @@ export function LeadsTable() {
         <div className="rd-map-filters">
           {STATUSES.map((s) => (
             <button key={s} className={`btn btn-sm${status === s ? " btn-primary" : ""}`} onClick={() => setStatus(s)}>
-              {s === "all" ? "All statuses" : s}
+              {s === "all" ? "All statuses" : LEAD_STATUS_LABEL[s]}
             </button>
           ))}
         </div>
@@ -66,12 +66,12 @@ export function LeadsTable() {
                   >
                     {STATUSES.filter((s) => s !== "all").map((s) => (
                       <option key={s} value={s}>
-                        {s}
+                        {LEAD_STATUS_LABEL[s]}
                       </option>
                     ))}
                   </select>
                   <div style={{ marginTop: 4 }}>
-                    <span className={`badge ${LEAD_STATUS_BADGE[lead.status]}`}>{lead.status}</span>
+                    <span className={`badge ${LEAD_STATUS_BADGE[lead.status]}`}>{LEAD_STATUS_LABEL[lead.status]}</span>
                   </div>
                 </td>
                 <td>

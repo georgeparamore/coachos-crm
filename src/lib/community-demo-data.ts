@@ -87,7 +87,7 @@ export type DemoEvent = {
   link?: string;
 };
 
-export type LeadStatus = "new" | "contacted" | "trial" | "won" | "lost";
+export type LeadStatus = "new" | "contacted" | "follow-up" | "closed";
 
 export type DemoLead = {
   id: string;
@@ -384,7 +384,7 @@ export const LEADS: DemoLead[] = [
     name: "Bianca Suarez",
     email: "bianca.suarez@example.com",
     source: "referral",
-    status: "trial",
+    status: "follow-up",
     joinedAt: "2026-07-24",
     note: "Referred by Leo Fischer, started a 7-day trial of the community.",
   },
@@ -393,7 +393,7 @@ export const LEADS: DemoLead[] = [
     name: "Owen Park",
     email: "owen.park@example.com",
     source: "website",
-    status: "won",
+    status: "closed",
     joinedAt: "2026-07-15",
     note: "Converted to a paid annual membership after the free workshop.",
   },
@@ -402,7 +402,7 @@ export const LEADS: DemoLead[] = [
     name: "Ravi Kapoor",
     email: "ravi.kapoor@example.com",
     source: "instagram",
-    status: "lost",
+    status: "closed",
     joinedAt: "2026-07-10",
     note: "Went cold after two follow-ups, said timing wasn't right.",
   },
@@ -495,9 +495,15 @@ export const ROLE_BADGE: Record<MemberRole, string> = {
 export const LEAD_STATUS_BADGE: Record<LeadStatus, string> = {
   new: "badge-blue",
   contacted: "badge-amber",
-  trial: "badge-purple",
-  won: "badge-green",
-  lost: "badge-red",
+  "follow-up": "badge-purple",
+  closed: "badge-green",
+};
+
+export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  "follow-up": "Follow up",
+  closed: "Closed",
 };
 
 export const LEAD_SOURCE_LABEL: Record<DemoLead["source"], string> = {
