@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { BusinessProfileForm } from "@/components/business-profile-form";
 import { DataLoadError } from "@/components/data-load-error";
 import { MetaConnectionRow } from "@/components/meta-connection-row";
+import { MetaAdAccountPicker } from "@/components/meta-ad-account-picker";
 import { logServerError } from "@/lib/log-server-error";
 
 const META_ERROR_MESSAGES: Record<string, string> = {
@@ -44,14 +45,15 @@ export default async function SettingsPage({
     .maybeSingle();
 
   let metaAdAccountName: string | null = null;
+  let metaAdAccounts: { id: string; name: string; currency: string; is_selected: boolean }[] = [];
   if (metaConnection) {
-    const { data: selectedAccount } = await service
+    const { data: accounts } = await service
       .from("meta_ad_accounts")
-      .select("name")
+      .select("id, name, currency, is_selected")
       .eq("connection_id", metaConnection.id)
-      .eq("is_selected", true)
-      .maybeSingle();
-    metaAdAccountName = selectedAccount?.name ?? null;
+      .order("name");
+    metaAdAccounts = accounts ?? [];
+    metaAdAccountName = metaAdAccounts.find((a) => a.is_selected)?.name ?? null;
   }
 
   const integrations = [
@@ -113,6 +115,8 @@ export default async function SettingsPage({
               </div>
             ))}
           </div>
+
+          {metaConnection && metaAdAccounts.length > 0 && <MetaAdAccountPicker accounts={metaAdAccounts} />}
 
           <div className="card">
             <div className="card-title">Platform status</div>
