@@ -5,6 +5,7 @@ import { formatCurrencyWhole } from "@/lib/analytics";
 import { StatTile } from "@/components/charts/stat-tile";
 import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
+import { MetaSyncButton } from "@/components/meta-sync-button";
 
 export default async function AdsPage() {
   const supabase = await createClient();
@@ -92,6 +93,7 @@ export default async function AdsPage() {
             {account ? ` · ${account.name}` : ""}
           </div>
         </div>
+        <MetaSyncButton />
       </div>
 
       {queryErrors.length > 0 && <DataLoadError what="your ad performance data" />}
@@ -108,8 +110,9 @@ export default async function AdsPage() {
         {allCampaigns.length === 0 ? (
           <div className="empty-state">
             <p>
-              Connected, but no campaign data has synced yet — the sync job that pulls campaigns and daily
-              performance from Meta hasn&apos;t been built yet.
+              Connected, but no campaign data has synced yet. Click <strong>Sync now</strong> above, or wait for
+              the next scheduled sync — campaigns and daily spend/lead numbers will appear here automatically
+              after that.
             </p>
           </div>
         ) : (
@@ -136,12 +139,6 @@ export default async function AdsPage() {
         )}
       </div>
 
-      {allCampaigns.length === 0 && (
-        <div className="notes-box">
-          Once the Meta sync job is built, campaigns and daily spend/lead numbers will appear here automatically —
-          no action needed beyond staying connected.
-        </div>
-      )}
     </div>
   );
 }
