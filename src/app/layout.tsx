@@ -3,7 +3,7 @@ import "./globals.css";
 import { ErrorToastProvider } from "@/components/error-toast-provider";
 
 export const metadata: Metadata = {
-  title: "CoachOS — Your platform",
+  title: "DJS CRM — Your platform",
   description: "Run your coaching business — CRM, subscriptions, contracts, courses, and community — from one place.",
 };
 

@@ -39,7 +39,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
               padding: "28px 24px",
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>CoachOS hit an unexpected error</div>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>DJS CRM hit an unexpected error</div>
             <p style={{ fontSize: 13, color: "#5c5c58", marginBottom: 18 }}>
               It&apos;s been reported automatically. Try reloading the page.
             </p>

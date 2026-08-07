@@ -1,4 +1,4 @@
-# CoachOS
+# DJS CRM
 
 Full-stack coaching/consulting platform combining CRM (leads, pipeline, proposals),
 billing (subscriptions, invoices, contracts), courses, and community — built for a
@@ -110,7 +110,7 @@ retiring the mockup).
 
 ## Demo login
 
-To let visitors try CoachOS without creating an account, add a "Try the demo" button to `/login`:
+To let visitors try DJS CRM without creating an account, add a "Try the demo" button to `/login`:
 
 1. Sign up a real coach account at `/signup` for the demo (a normal account, nothing special about it).
 2. Copy its `id` from Supabase: Table Editor → `profiles` → the row with that email.
@@ -202,7 +202,7 @@ the coach dashboard) · email notifications · custom domain + branding.
 
 ## Key decisions still to make
 
-- Platform name (currently "CoachOS" — placeholder)
+- Platform name: **DJS CRM** (decided)
 - Actual plan names, prices, and what's included in each
 - Course lineup — titles, modules, which plans get access
 - Contract templates — exact language and terms

@@ -22,17 +22,14 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Billing",
-    items: [
-      { href: "/analytics", label: "Analytics", icon: "bar-chart" },
-      { href: "/deals", label: "Deal evaluations", icon: "file-text" },
-      { href: "/subscriptions", label: "Subscriptions", icon: "refresh" },
-      { href: "/invoices", label: "Invoices", icon: "invoice" },
-      { href: "/contracts", label: "Contracts", icon: "pen" },
-    ],
-  },
-  {
     label: "Account",
     items: [{ href: "/settings", label: "Settings", icon: "gear" }],
   },
 ];
+
+// Analytics, Deal evaluations, Subscriptions, Invoices, and Contracts are
+// real, working, Stripe-connected Phase 1-2 features — intentionally hidden
+// from the nav (not deleted) while DJS CRM's new direction is being built
+// out. Their routes still work if visited directly. Re-add a "Billing"
+// NavSection with them once the rest of the product is finished — George
+// asked to be reminded of this explicitly at that point.

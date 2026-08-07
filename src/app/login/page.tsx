@@ -76,7 +76,7 @@ export default function LoginPage() {
     >
       <div className="card" style={{ width: 380, marginBottom: 0 }}>
         <div className="logo-name" style={{ marginBottom: 2 }}>
-          CoachOS
+          DJS CRM
         </div>
         <div className="page-sub" style={{ marginBottom: 20 }}>
           Sign in to your platform
