@@ -45,11 +45,11 @@ export default async function SettingsPage({
     .maybeSingle();
 
   let metaAdAccountName: string | null = null;
-  let metaAdAccounts: { id: string; name: string; currency: string; is_selected: boolean }[] = [];
+  let metaAdAccounts: { id: string; name: string; currency: string; is_selected: boolean; meta_ad_account_id: string }[] = [];
   if (metaConnection) {
     const { data: accounts } = await service
       .from("meta_ad_accounts")
-      .select("id, name, currency, is_selected")
+      .select("id, name, currency, is_selected, meta_ad_account_id")
       .eq("connection_id", metaConnection.id)
       .order("name");
     metaAdAccounts = accounts ?? [];

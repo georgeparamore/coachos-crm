@@ -9,6 +9,7 @@ type AdAccount = {
   name: string;
   currency: string;
   is_selected: boolean;
+  meta_ad_account_id: string;
 };
 
 export function MetaAdAccountPicker({ accounts }: { accounts: AdAccount[] }) {
@@ -50,7 +51,9 @@ export function MetaAdAccountPicker({ accounts }: { accounts: AdAccount[] }) {
         <div className="list-row" key={account.id}>
           <div>
             <div className="name">{account.name}</div>
-            <div className="sub">{account.currency}</div>
+            <div className="sub">
+              {account.currency} · {account.meta_ad_account_id}
+            </div>
           </div>
           {account.is_selected ? (
             <span className="badge badge-green">Selected</span>
