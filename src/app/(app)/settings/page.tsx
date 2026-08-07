@@ -116,7 +116,7 @@ export default async function SettingsPage({
             ))}
           </div>
 
-          {metaConnection && metaAdAccounts.length > 0 && <MetaAdAccountPicker accounts={metaAdAccounts} />}
+          {metaConnection && <MetaAdAccountPicker accounts={metaAdAccounts} />}
 
           <div className="card">
             <div className="card-title">Platform status</div>
