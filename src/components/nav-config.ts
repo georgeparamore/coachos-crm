@@ -15,6 +15,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/dashboard", label: "Overview", icon: "grid" },
       { href: "/courses", label: "Courses & programs", icon: "play" },
+      { href: "/students", label: "Student progress", icon: "trending-up" },
       { href: "/community", label: "Community", icon: "message" },
       { href: "/crm", label: "Leads", icon: "users" },
       { href: "/ads", label: "Ad performance", icon: "bar-chart" },
