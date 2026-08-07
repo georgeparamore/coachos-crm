@@ -1,4 +1,4 @@
-# CoachOS
+# DJS CRM
 
 Full-stack coaching/consulting platform combining CRM (leads, pipeline, proposals),
 billing (subscriptions, invoices, contracts), courses, and community — built for a
@@ -15,9 +15,10 @@ same tokens, same layout, same components.
 | Framework | Next.js 16 (App Router, TypeScript) |
 | Database & auth | Supabase |
 | Payments & subscriptions | Stripe (Phase 2) |
-| Video hosting & streaming | Bunny.net (Phase 3) |
+| Ad performance | Meta Marketing API (Phase 4) |
+| Video hosting & streaming | Bunny Stream (Phase 5) |
+| Email/notifications | Resend (Phase 7) |
 | App hosting | Vercel or Railway |
-| Email/notifications | SMTP via Resend or similar (Phase 4) |
 
 ## Phase 1 — Foundation
 
@@ -43,11 +44,73 @@ same tokens, same layout, same components.
 - [x] Dashboard shows today's date in the greeting and a "Today's schedule" card
 - [x] In-tab reminders via the browser Notification API — fires while the dashboard/calendar tab is
       open, does **not** work if the tab/browser is closed (that needs a background job + push
-      subscription, which is Phase 4 territory alongside email notifications)
+      subscription — see Phase 7 below)
+
+## Roadmap (Phases 3–8)
+
+Everything past Phase 2 follows a phased plan drafted after a `/community-demo` concept
+mockup (a static, unauthenticated UX exploration — see `docs/community-demo-inventory.md`
+for what in it is real-build reference vs. throwaway) surfaced the shape of courses,
+community, and a new Meta (Facebook/Instagram) Ads integration requirement. The full plan
+lives at `docs/phased-build-plan.md`; the product/technical decisions it locks in (and why)
+are recorded in `docs/architecture-decisions.md`. Short version: **Phase 4 (Meta Ads) ships
+before Phase 5 (Courses)** since it's the new business driver and has external approval lead
+time, then Phase 6 (Community), Phase 7 (background notifications/email), Phase 8 (hardening +
+retiring the mockup).
+
+### Phase 3 — Product foundation and schema contracts
+
+- [x] Decisions locked and documented: `docs/architecture-decisions.md`
+- [x] `/community-demo` screens inventoried and mapped to real routes/later phases/retire:
+      `docs/community-demo-inventory.md`
+- [x] Migrations designed for coach/client memberships, platform admins, courses, community,
+      notifications, and Meta Ads — written and verified to apply cleanly against a local
+      Postgres instance, **not yet applied to any real Supabase project**:
+      `0007_memberships.sql`, `0008_courses.sql`, `0009_community.sql`,
+      `0010_notifications.sql`, `0011_meta_ads.sql`
+- [ ] Feature-flag/config strategy so Meta/Bunny/community/notifications can be toggled per
+      environment
+- [ ] `ADMIN_EMAIL` env-var check migrated to the new `platform_admins` table (table exists;
+      call sites — currently gating `/admin/errors` — not yet updated)
+- [ ] Two-coach RLS acceptance fixtures exercised against a real Supabase project (needs real
+      auth sessions to test meaningfully; a local Postgres stub can prove the schema applies
+      but not that the policies hold up under real JWTs)
+
+### Phase 4 — Meta Ads performance and CRM attribution
+
+- [x] "Connect Meta" OAuth flow: `/api/meta/connect` (coach-only, signed CSRF state) →
+      Meta's OAuth dialog → `/api/meta/callback` (exchanges code for a long-lived token,
+      encrypts it at the application layer on top of `meta_connections`' service-role-only
+      RLS, fetches + stores the coach's ad accounts)
+  - Note: `ads_read` currently requested, per the account discovery approach in
+    `src/lib/meta/client.ts` — `business_management` may need adding if ad-account discovery
+    comes back empty for an account only reachable via a Business Manager the coach doesn't
+    personally admin. First thing to check once real credentials are in.
+- [x] `/api/meta/disconnect`: best-effort revokes the token with Meta, then always clears the
+      local copy and marks the connection disconnected (never trust the remote revoke call
+      alone)
+- [x] Settings page shows real connection status (`src/components/meta-connection-row.tsx`) —
+      Connect/Disconnect buttons, connected ad account name, inline success/error banners
+- [x] Versioned Marketing API client (`src/lib/meta/client.ts`): token exchange, ad accounts,
+      campaigns, daily insights — timeout-bounded, one retry on 429/5xx, paginated
+- [ ] **Not yet tested against real Meta data** — no live app/credentials existed while this
+      was written. First real-data checks needed: does `ads_read` alone surface the right ad
+      accounts; is the `actions` → lead-count mapping in `fetchDailyInsights` correct for this
+      account's campaign types (see the comment in that function)
+- [ ] Sync job (incremental campaign/insight caching into `meta_campaigns` /
+      `meta_ad_insights_daily`, so the dashboard reads cache instead of calling Meta live) —
+      not built yet
+- [ ] Ad performance dashboard UI reading the cached tables — not built yet (the
+      `/community-demo/admin/ads` mockup is the UX reference, per
+      `docs/community-demo-inventory.md`)
+- [ ] Ad-account picker UI for coaches with more than one ad account (auto-selected today only
+      when there's exactly one)
+- [ ] Scheduled production sync (Vercel Cron or equivalent) — deliberately deferred until the
+      connect flow itself is verified working end-to-end
 
 ## Demo login
 
-To let visitors try CoachOS without creating an account, add a "Try the demo" button to `/login`:
+To let visitors try DJS CRM without creating an account, add a "Try the demo" button to `/login`:
 
 1. Sign up a real coach account at `/signup` for the demo (a normal account, nothing special about it).
 2. Copy its `id` from Supabase: Table Editor → `profiles` → the row with that email.
@@ -139,7 +202,7 @@ the coach dashboard) · email notifications · custom domain + branding.
 
 ## Key decisions still to make
 
-- Platform name (currently "CoachOS" — placeholder)
+- Platform name: **DJS CRM** (decided)
 - Actual plan names, prices, and what's included in each
 - Course lineup — titles, modules, which plans get access
 - Contract templates — exact language and terms

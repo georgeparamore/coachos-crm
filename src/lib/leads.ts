@@ -1,8 +1,8 @@
 export const LEAD_STAGES = [
-  { key: "new", label: "New leads", badge: "badge-blue" },
-  { key: "in_conversation", label: "In conversation", badge: "badge-amber" },
-  { key: "proposal_sent", label: "Proposal sent", badge: "badge-purple" },
-  { key: "signed", label: "Signed clients", badge: "badge-green" },
+  { key: "new", label: "New", badge: "badge-blue" },
+  { key: "in_conversation", label: "Contacted", badge: "badge-amber" },
+  { key: "proposal_sent", label: "Follow up", badge: "badge-purple" },
+  { key: "signed", label: "Closed", badge: "badge-green" },
 ] as const;
 
 export type LeadStage = (typeof LEAD_STAGES)[number]["key"];

@@ -27,7 +27,7 @@ export default async function CrmPage({
     <div className="page">
       <div className="page-header">
         <div>
-          <div className="page-title">CRM &amp; pipeline</div>
+          <div className="page-title">Leads</div>
           <div className="page-sub">Track every lead from first touch to signed client</div>
         </div>
       </div>

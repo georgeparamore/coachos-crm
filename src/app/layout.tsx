@@ -3,7 +3,7 @@ import "./globals.css";
 import { ErrorToastProvider } from "@/components/error-toast-provider";
 
 export const metadata: Metadata = {
-  title: "CoachOS — Your platform",
+  title: "DJS CRM — Your platform",
   description: "Run your coaching business — CRM, subscriptions, contracts, courses, and community — from one place.",
 };
 
@@ -11,7 +11,7 @@ const THEME_INIT_SCRIPT = `
 (function () {
   try {
     var stored = localStorage.getItem('coachos-theme');
-    var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var theme = stored === 'dark' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (e) {}
 })();

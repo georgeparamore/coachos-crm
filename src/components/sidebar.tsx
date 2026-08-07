@@ -28,7 +28,7 @@ export function Sidebar({ userName, userInitials, userPlan, isAdmin }: Props) {
   return (
     <div className="sidebar">
       <div className="logo">
-        <div className="logo-name">CoachOS</div>
+        <div className="logo-name">DJS CRM</div>
         <div className="logo-sub">Your coaching platform</div>
       </div>
 

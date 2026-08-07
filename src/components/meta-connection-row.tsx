@@ -1,0 +1,58 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useErrorToast } from "@/components/error-toast-provider";
+
+export function MetaConnectionRow({
+  connected,
+  adAccountName,
+}: {
+  connected: boolean;
+  adAccountName: string | null;
+}) {
+  const router = useRouter();
+  const { showError } = useErrorToast();
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  async function handleDisconnect() {
+    setDisconnecting(true);
+    try {
+      const res = await fetch("/api/meta/disconnect", { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to disconnect");
+      }
+      router.refresh();
+    } catch (err) {
+      showError(err, "settings.meta-disconnect");
+    } finally {
+      setDisconnecting(false);
+    }
+  }
+
+  return (
+    <div className="list-row">
+      <div className="list-row-left">
+        <div>
+          <div className="name">Meta Ads (Facebook/Instagram)</div>
+          <div className="sub">
+            {connected ? `Ad performance data${adAccountName ? ` · ${adAccountName}` : ""}` : "Campaign spend & leads in the CRM"}
+          </div>
+        </div>
+      </div>
+      {connected ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="badge badge-green">Connected</span>
+          <button className="btn btn-sm" onClick={handleDisconnect} disabled={disconnecting}>
+            {disconnecting ? "Disconnecting…" : "Disconnect"}
+          </button>
+        </div>
+      ) : (
+        <a href="/api/meta/connect" className="btn btn-sm btn-primary">
+          Connect
+        </a>
+      )}
+    </div>
+  );
+}

@@ -11,6 +11,8 @@ const PUBLIC_PATHS = [
   "/api/stripe/webhook", // verified via Stripe signature, not a user session
   "/api/contracts", // public contract fetch/sign, gated by an unguessable token
   "/realestate-demo", // client-facing mockup — no real data or auth behind it
+  "/community-demo", // client-facing mockup — no real data or auth behind it
+  "/privacy", // public privacy policy — required by Meta's app review, no account needed
 ];
 
 export async function updateSession(request: NextRequest) {

@@ -101,6 +101,66 @@ const PATHS: Record<string, React.ReactNode> = {
       <line x1="6" y1="6" x2="18" y2="18" />
     </>
   ),
+  video: (
+    <>
+      <polygon points="23 7 16 12 23 17 23 7" />
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <polyline points="22 6 12 13 2 6" />
+    </>
+  ),
+  "book-open": (
+    <>
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </>
+  ),
+  monitor: (
+    <>
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </>
+  ),
+  check: <polyline points="20 6 9 17 4 12" />,
+  "check-circle": (
+    <>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </>
+  ),
+  star: (
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  ),
+  "trending-up": (
+    <>
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </>
+  ),
+  megaphone: (
+    <>
+      <path d="M3 11v3a1 1 0 0 0 1 1h2l3.5 5.5a1 1 0 0 0 1.5.2V5.3a1 1 0 0 0-1.5-.8L6 10H4a1 1 0 0 0-1 1z" />
+      <path d="M13 7.5a6 6 0 0 1 0 9" />
+      <path d="M16.5 5a10 10 0 0 1 0 14" />
+    </>
+  ),
+  link: (
+    <>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </>
+  ),
+  sparkle: (
+    <>
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+      <path d="M7.5 7.5 10 10M14 14l2.5 2.5M16.5 7.5 14 10M10 14l-2.5 2.5" />
+    </>
+  ),
 };
 
 export function NavIcon({ name }: { name: string }) {

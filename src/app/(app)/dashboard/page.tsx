@@ -6,10 +6,17 @@ import { PLANS } from "@/lib/stripe";
 import { formatCurrencyWhole } from "@/lib/analytics";
 import { getZonedDayBounds, formatDateInZone } from "@/lib/timezone";
 import { TodayReminders } from "@/components/today-reminders";
+import { DailyCheckin } from "@/components/daily-checkin";
 import { LiveClock } from "@/components/live-clock";
 import { PreviewCard, MiniStat } from "@/components/preview-card";
 import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
+import { BarList } from "@/components/charts/bar-list";
+import { SeriesChart } from "@/components/charts/series-chart";
+
+function dayLabel(date: Date) {
+  return date.toLocaleDateString(undefined, { weekday: "short" });
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -17,8 +24,9 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase.from("profiles").select("timezone").eq("id", user!.id).single();
+  const { data: profile } = await supabase.from("profiles").select("timezone, full_name").eq("id", user!.id).single();
   const timezone = profile?.timezone || "UTC";
+  const firstName = profile?.full_name?.trim().split(" ")[0] || "there";
 
   const now = new Date();
   const { start: startOfDay, end: endOfDay } = getZonedDayBounds(timezone, now);
@@ -59,6 +67,7 @@ export default async function DashboardPage() {
   const activeClients = allLeads.filter((l) => l.stage === "signed").length;
   const openLeads = allLeads.filter((l) => l.stage !== "signed").length;
   const recentLeads = allLeads.slice(0, 5);
+  const newLeadCount = allLeads.filter((l) => l.stage === "new").length;
   const events = (todaysEvents as CalendarEvent[]) ?? [];
 
   const winRate = allLeads.length > 0 ? Math.round((activeClients / allLeads.length) * 100) : 0;
@@ -83,6 +92,38 @@ export default async function DashboardPage() {
 
   const formattedDate = formatDateInZone(now, timezone);
 
+  // New leads per day, last 7 days
+  const days: Date[] = [];
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(todayStart);
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+  const signupTrend = days.map((day) => {
+    const dayEnd = new Date(day);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    const count = allLeads.filter((l) => {
+      const created = new Date(l.created_at);
+      return created >= day && created < dayEnd;
+    }).length;
+    return { label: dayLabel(day), value: count };
+  });
+
+  // Lead sources (top 5 + Other)
+  const sourceCounts = new Map<string, number>();
+  for (const lead of allLeads) {
+    const key = lead.source?.trim() || "Unspecified";
+    sourceCounts.set(key, (sourceCounts.get(key) ?? 0) + 1);
+  }
+  const sortedSources = [...sourceCounts.entries()].sort((a, b) => b[1] - a[1]);
+  const topSources = sortedSources.slice(0, 5);
+  const otherCount = sortedSources.slice(5).reduce((sum, [, count]) => sum + count, 0);
+  const sourceData = [
+    ...topSources.map(([label, value]) => ({ label, value, color: "var(--chart-trend)" })),
+    ...(otherCount > 0 ? [{ label: "Other", value: otherCount, color: "var(--text-3)" }] : []),
+  ];
+
   return (
     <div className="page">
       <div className="page-header">
@@ -96,53 +137,13 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      <DailyCheckin firstName={firstName} todayEventCount={events.length} newLeadCount={newLeadCount} />
+
       <TodayReminders events={events} />
 
       {queryErrors.length > 0 && <DataLoadError what="some of your dashboard data" />}
 
-      <div className="metrics">
-        <div className="metric">
-          <div className="metric-label">Active clients</div>
-          <div className="metric-value">{activeClients}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Monthly revenue</div>
-          <div className="metric-value">{formatCurrencyWhole(mrrCents)}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Open leads</div>
-          <div className="metric-value">{openLeads}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Course enrollments</div>
-          <div className="metric-value">—</div>
-          <div className="metric-delta delta-neutral">Connect courses in Phase 3</div>
-        </div>
-      </div>
-
-      <div className="preview-grid">
-        <PreviewCard title="Today's schedule" href="/calendar">
-          {events.length === 0 ? (
-            <div className="sub">Nothing on the calendar today.</div>
-          ) : (
-            events.slice(0, 4).map((event) => (
-              <div className="list-row" key={event.id}>
-                <div>
-                  <div className="name">{event.title}</div>
-                  <div className="sub">
-                    {new Date(event.start_time).toLocaleTimeString(undefined, {
-                      timeZone: timezone,
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                </div>
-                <span className={`badge ${EVENT_TYPE_BADGE[event.event_type]}`}>{EVENT_TYPE_LABEL[event.event_type]}</span>
-              </div>
-            ))
-          )}
-        </PreviewCard>
-
+      <div className="preview-grid" style={{ marginBottom: 24 }}>
         <PreviewCard title="Recent leads" href="/crm">
           {recentLeads.length === 0 ? (
             <div className="sub">No leads yet.</div>
@@ -166,6 +167,79 @@ export default async function DashboardPage() {
           )}
         </PreviewCard>
 
+        <PreviewCard title="Today's schedule" href="/calendar">
+          {events.length === 0 ? (
+            <div className="sub">Nothing on the calendar today.</div>
+          ) : (
+            events.slice(0, 4).map((event) => (
+              <div className="list-row" key={event.id}>
+                <div>
+                  <div className="name">{event.title}</div>
+                  <div className="sub">
+                    {new Date(event.start_time).toLocaleTimeString(undefined, {
+                      timeZone: timezone,
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </div>
+                <span className={`badge ${EVENT_TYPE_BADGE[event.event_type]}`}>{EVENT_TYPE_LABEL[event.event_type]}</span>
+              </div>
+            ))
+          )}
+        </PreviewCard>
+      </div>
+
+      <div className="metrics">
+        <div className="metric">
+          <div className="metric-label">Active clients</div>
+          <div className="metric-value">{activeClients}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-label">Monthly revenue</div>
+          <div className="metric-value">{formatCurrencyWhole(mrrCents)}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-label">Open leads</div>
+          <div className="metric-value">{openLeads}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-label">Course enrollments</div>
+          <div className="metric-value">—</div>
+          <div className="metric-delta delta-neutral">Connect courses in Phase 3</div>
+        </div>
+      </div>
+
+      <div className="two-col" style={{ marginBottom: 24 }}>
+        <div className="card">
+          <div className="chart-card-header">
+            <div className="card-title" style={{ marginBottom: 0 }}>
+              New leads, last 7 days
+            </div>
+            <div className="chart-headline">{signupTrend.reduce((sum, d) => sum + d.value, 0)}</div>
+          </div>
+          {allLeads.length === 0 ? (
+            <div className="empty-state">
+              <p>No leads yet — add some in the CRM to see this trend.</p>
+            </div>
+          ) : (
+            <SeriesChart points={signupTrend} color="var(--chart-trend)" mode="bar" />
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-title">Lead sources</div>
+          {sourceData.length === 0 ? (
+            <div className="empty-state">
+              <p>No leads yet.</p>
+            </div>
+          ) : (
+            <BarList data={sourceData} formatValue={(n) => String(n)} total={allLeads.length} />
+          )}
+        </div>
+      </div>
+
+      <div className="preview-grid">
         <PreviewCard title="Analytics" href="/analytics">
           <MiniStat label="Win rate" value={`${winRate}%`} />
           <MiniStat label="Open pipeline value" value={formatCurrencyWhole(openPipelineValue)} />
