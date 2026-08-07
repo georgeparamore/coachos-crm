@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useErrorToast } from "@/components/error-toast-provider";
+import { MetaTokenConnectForm } from "@/components/meta-token-connect-form";
 
 export function MetaConnectionRow({
   connected,
@@ -32,27 +33,30 @@ export function MetaConnectionRow({
   }
 
   return (
-    <div className="list-row">
-      <div className="list-row-left">
-        <div>
-          <div className="name">Meta Ads (Facebook/Instagram)</div>
-          <div className="sub">
-            {connected ? `Ad performance data${adAccountName ? ` · ${adAccountName}` : ""}` : "Campaign spend & leads in the CRM"}
+    <div className="list-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+        <div className="list-row-left">
+          <div>
+            <div className="name">Meta Ads (Facebook/Instagram)</div>
+            <div className="sub">
+              {connected ? `Ad performance data${adAccountName ? ` · ${adAccountName}` : ""}` : "Campaign spend & leads in the CRM"}
+            </div>
           </div>
         </div>
+        {connected ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="badge badge-green">Connected</span>
+            <button className="btn btn-sm" onClick={handleDisconnect} disabled={disconnecting}>
+              {disconnecting ? "Disconnecting…" : "Disconnect"}
+            </button>
+          </div>
+        ) : (
+          <a href="/api/meta/connect" className="btn btn-sm btn-primary">
+            Connect
+          </a>
+        )}
       </div>
-      {connected ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="badge badge-green">Connected</span>
-          <button className="btn btn-sm" onClick={handleDisconnect} disabled={disconnecting}>
-            {disconnecting ? "Disconnecting…" : "Disconnect"}
-          </button>
-        </div>
-      ) : (
-        <a href="/api/meta/connect" className="btn btn-sm btn-primary">
-          Connect
-        </a>
-      )}
+      {!connected && <MetaTokenConnectForm />}
     </div>
   );
 }
