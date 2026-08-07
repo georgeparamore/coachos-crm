@@ -16,6 +16,23 @@ export function MetaAdAccountPicker({ accounts }: { accounts: AdAccount[] }) {
   const router = useRouter();
   const { showError } = useErrorToast();
   const [selectingId, setSelectingId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const res = await fetch("/api/meta/refresh-accounts", { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to refresh ad accounts");
+      }
+      router.refresh();
+    } catch (err) {
+      showError(err, "settings.meta-refresh-accounts");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function handleSelect(adAccountId: string) {
     setSelectingId(adAccountId);
@@ -37,15 +54,20 @@ export function MetaAdAccountPicker({ accounts }: { accounts: AdAccount[] }) {
     }
   }
 
-  if (accounts.length === 0) return null;
-
   return (
     <div className="card">
-      <div className="card-title">Meta ad account</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div className="card-title">Meta ad account</div>
+        <button className="btn btn-sm" onClick={handleRefresh} disabled={refreshing}>
+          {refreshing ? "Refreshing…" : "Refresh accounts"}
+        </button>
+      </div>
       <p className="sub" style={{ marginBottom: 12 }}>
-        {accounts.length > 1
-          ? "Multiple ad accounts found on this Meta login — choose the one to sync campaign data from."
-          : "This is the ad account campaign data syncs from."}
+        {accounts.length === 0
+          ? "No ad accounts found yet. If one was just shared with you (e.g. via Assign Partner), click Refresh accounts."
+          : accounts.length > 1
+            ? "Multiple ad accounts found on this Meta login — choose the one to sync campaign data from."
+            : "This is the ad account campaign data syncs from."}
       </p>
       {accounts.map((account) => (
         <div className="list-row" key={account.id}>
