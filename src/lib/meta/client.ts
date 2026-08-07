@@ -80,11 +80,12 @@ export function buildAuthorizeUrl(redirectUri: string, state: string): string {
   url.searchParams.set("client_id", appId);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", state);
-  // ads_read is sufficient to list/report on ad accounts the user already
-  // administers. business_management may be required if the account is
-  // only reachable via a Business Manager the user doesn't personally
-  // admin — add it here if account discovery comes back empty in testing.
-  url.searchParams.set("scope", "ads_read");
+  // ads_read alone only surfaces ad accounts the user personally
+  // administers. business_management is required too when the account is
+  // only reachable via a Business Manager the user belongs to as a
+  // partner/employee rather than a personal admin — confirmed necessary in
+  // testing (account discovery came back empty with ads_read alone).
+  url.searchParams.set("scope", "ads_read,business_management");
   return url.toString();
 }
 
