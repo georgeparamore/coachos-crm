@@ -11,6 +11,7 @@ export function InviteClientForm() {
   const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
   const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -28,6 +29,7 @@ export function InviteClientForm() {
         throw new Error(body.error || "Failed to create invite");
       }
       setInviteUrl(body.inviteUrl);
+      setEmailSent(Boolean(body.emailSent));
       setEmail("");
       setFullName("");
       router.refresh();
@@ -71,7 +73,11 @@ export function InviteClientForm() {
 
       {inviteUrl && (
         <div className="notes-box" style={{ marginTop: 12 }}>
-          Invite created. Since email sending isn&apos;t set up yet, copy this link and send it to your client directly:
+          {emailSent ? (
+            "Invite emailed. You can also copy the link below as a backup:"
+          ) : (
+            <>Invite created, but the email couldn&apos;t be sent — copy this link and send it to your client directly:</>
+          )}
           <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
             <code style={{ fontSize: 12, wordBreak: "break-all", flex: 1 }}>{inviteUrl}</code>
             <button type="button" className="btn btn-sm" onClick={handleCopy}>
