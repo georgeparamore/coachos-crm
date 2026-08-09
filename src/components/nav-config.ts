@@ -14,6 +14,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Manage",
     items: [
       { href: "/dashboard", label: "Overview", icon: "grid" },
+      { href: "/clients", label: "Clients", icon: "users" },
       { href: "/courses", label: "Courses & programs", icon: "play" },
       { href: "/students", label: "Student progress", icon: "trending-up" },
       { href: "/community", label: "Community", icon: "message" },
