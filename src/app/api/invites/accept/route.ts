@@ -38,10 +38,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This invite has already been used or revoked" }, { status: 409 });
   }
 
-  // An account with this email already existing (coach or client, from any
-  // relationship) isn't handled here — deliberately out of scope for v1.
-  // The clear failure mode below tells them to log in instead of silently
-  // doing something surprising with an existing account.
   const { data: createdUser, error: createUserError } = await service.auth.admin.createUser({
     email: invite.email,
     password,
@@ -52,8 +48,12 @@ export async function POST(request: Request) {
   if (createUserError || !createdUser.user) {
     const message = createUserError?.message ?? "";
     if (message.toLowerCase().includes("already been registered") || message.toLowerCase().includes("already exists")) {
+      // Not a dead end — the invitee already has an account under this
+      // email (as a coach or a client of someone else). They prove it's
+      // theirs by logging in, which /api/invites/accept-existing then
+      // links to this invite instead of creating a new account.
       return NextResponse.json(
-        { error: "An account with this email already exists — log in instead and ask your coach to invite you again." },
+        { error: "An account with this email already exists.", code: "email_exists" },
         { status: 409 },
       );
     }
