@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/log-server-error";
+import { sendEmail } from "@/lib/email/resend";
 
 export const runtime = "nodejs";
 
@@ -49,5 +50,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create invite" }, { status: 500 });
   }
 
-  return NextResponse.json({ id: invite.id, inviteUrl: `${appUrl()}/invite/${invite.token}` });
+  const inviteUrl = `${appUrl()}/invite/${invite.token}`;
+
+  const coachName = user.user_metadata?.full_name || user.email || "Your coach";
+  const { sent, error: emailError } = await sendEmail({
+    to: email,
+    subject: `${coachName} invited you to join their coaching platform`,
+    replyTo: user.email,
+    html: `
+      <div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:480px;">
+        <h2 style="margin:0 0 12px;">You're invited</h2>
+        <p style="font-size:14px;line-height:1.6;">${coachName} has invited you to join their coaching platform on DJS CRM.</p>
+        <p style="margin:20px 0;">
+          <a href="${inviteUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;">Accept invite</a>
+        </p>
+        <p style="font-size:12px;color:#999;">Or paste this link into your browser: ${inviteUrl}</p>
+      </div>`,
+    text: `${coachName} has invited you to join their coaching platform on DJS CRM.\n\nAccept your invite: ${inviteUrl}`,
+  });
+
+  if (!sent && emailError) {
+    await logServerError({ message: emailError }, "invites.email_send_failed", { userId: user.id, userEmail: user.email });
+  }
+
+  return NextResponse.json({ id: invite.id, inviteUrl, emailSent: sent });
 }
