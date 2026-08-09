@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { InviteClientForm } from "@/components/invite-client-form";
 import { RevokeInviteButton } from "@/components/revoke-invite-button";
+import { EnrollClientButton } from "@/components/enroll-client-button";
 import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
 
@@ -10,7 +11,7 @@ export default async function ClientsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [membershipsRes, invitesRes] = await Promise.all([
+  const [membershipsRes, invitesRes, coursesRes] = await Promise.all([
     supabase
       .from("coach_client_memberships")
       .select("id, status, invited_at, accepted_at, client_id")
@@ -22,18 +23,27 @@ export default async function ClientsPage() {
       .eq("coach_id", user!.id)
       .eq("status", "pending")
       .order("invited_at", { ascending: false }),
+    supabase.from("courses").select("id, title").eq("coach_id", user!.id).order("title"),
   ]);
 
   const { data: memberships } = membershipsRes;
   const { data: invites } = invitesRes;
+  const { data: courses } = coursesRes;
 
   const clientIds = (memberships ?? []).map((m) => m.client_id);
-  const { data: clientProfiles, error: profilesError } =
+  const [profilesRes, enrollmentsRes] = await Promise.all([
     clientIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name, email").in("id", clientIds)
-      : { data: [] as { id: string; full_name: string | null; email: string }[], error: null };
+      ? supabase.from("profiles").select("id, full_name, email").in("id", clientIds)
+      : Promise.resolve({ data: [] as { id: string; full_name: string | null; email: string }[], error: null }),
+    clientIds.length > 0
+      ? supabase.from("enrollments").select("client_id, course_id").eq("coach_id", user!.id).in("client_id", clientIds)
+      : Promise.resolve({ data: [] as { client_id: string; course_id: string }[], error: null }),
+  ]);
 
-  const queryErrors = [membershipsRes.error, invitesRes.error, profilesError].filter(Boolean);
+  const { data: clientProfiles, error: profilesError } = profilesRes;
+  const { data: enrollments, error: enrollmentsError } = enrollmentsRes;
+
+  const queryErrors = [membershipsRes.error, invitesRes.error, coursesRes.error, profilesError, enrollmentsError].filter(Boolean);
   if (queryErrors.length > 0) {
     await Promise.all(queryErrors.map((err) => logServerError(err, "clients.load", { userId: user!.id, userEmail: user!.email })));
   }
@@ -41,6 +51,15 @@ export default async function ClientsPage() {
   const profileById = new Map((clientProfiles ?? []).map((p) => [p.id, p]));
   const activeMemberships = (memberships ?? []).filter((m) => m.status !== "revoked");
   const pendingInvites = invites ?? [];
+  const allCourses = courses ?? [];
+  const courseTitleById = new Map(allCourses.map((c) => [c.id, c.title]));
+
+  const enrolledCourseIdsByClient = new Map<string, Set<string>>();
+  for (const e of enrollments ?? []) {
+    const set = enrolledCourseIdsByClient.get(e.client_id) ?? new Set<string>();
+    set.add(e.course_id);
+    enrolledCourseIdsByClient.set(e.client_id, set);
+  }
 
   return (
     <div className="page">
@@ -84,15 +103,28 @@ export default async function ClientsPage() {
         ) : (
           activeMemberships.map((membership) => {
             const profile = profileById.get(membership.client_id);
+            const enrolledCourseIds = enrolledCourseIdsByClient.get(membership.client_id) ?? new Set<string>();
+            const enrolledTitles = Array.from(enrolledCourseIds)
+              .map((id) => courseTitleById.get(id))
+              .filter(Boolean);
+            const availableCourses = allCourses.filter((c) => !enrolledCourseIds.has(c.id));
             return (
               <div className="list-row" key={membership.id}>
                 <div>
                   <div className="name">{profile?.full_name || profile?.email || "Unknown client"}</div>
-                  <div className="sub">{profile?.email}</div>
+                  <div className="sub">
+                    {profile?.email}
+                    {enrolledTitles.length > 0 ? ` · Enrolled in ${enrolledTitles.join(", ")}` : ""}
+                  </div>
                 </div>
-                <span className={membership.status === "active" ? "badge badge-green" : "badge badge-amber"}>
-                  {membership.status === "active" ? "Active" : "Invited"}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {membership.status === "active" && (
+                    <EnrollClientButton clientId={membership.client_id} availableCourses={availableCourses} />
+                  )}
+                  <span className={membership.status === "active" ? "badge badge-green" : "badge badge-amber"}>
+                    {membership.status === "active" ? "Active" : "Invited"}
+                  </span>
+                </div>
               </div>
             );
           })
