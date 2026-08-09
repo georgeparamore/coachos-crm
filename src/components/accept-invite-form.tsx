@@ -18,8 +18,25 @@ export function AcceptInviteForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Flips to true when the invited email already has an account — the form
+  // becomes "log in to accept" instead of "create an account".
+  const [existingAccount, setExistingAccount] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function linkExistingAccount() {
+    const res = await fetch("/api/invites/accept-existing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(body.error || "Failed to link your account to this coach");
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  async function handleCreateAccount(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -32,6 +49,12 @@ export function AcceptInviteForm({
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (body.code === "email_exists") {
+          setExistingAccount(true);
+          setPassword("");
+          setError(null);
+          return;
+        }
         throw new Error(body.error || "Failed to create your account");
       }
 
@@ -53,8 +76,62 @@ export function AcceptInviteForm({
     }
   }
 
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        throw new Error("Incorrect password for that account.");
+      }
+      await linkExistingAccount();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (existingAccount) {
+    return (
+      <form onSubmit={handleLogin}>
+        <div className="notes-box" style={{ marginBottom: 14 }}>
+          An account already exists for {email}. Log in below to accept this invite — it&apos;ll link that account to
+          your coach.
+        </div>
+        <div className="form-row">
+          <label className="form-label">Email</label>
+          <input className="form-input" value={email} disabled />
+        </div>
+        <div className="form-row">
+          <label className="form-label">Password</label>
+          <input
+            className="form-input"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+
+        {error && (
+          <div className="notes-box" style={{ background: "var(--red-bg)", color: "var(--red-text)" }}>
+            {error}
+          </div>
+        )}
+
+        <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: "100%", justifyContent: "center" }}>
+          {loading ? "Logging in…" : "Log in and accept"}
+        </button>
+      </form>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleCreateAccount}>
       <div className="form-row">
         <label className="form-label">Email</label>
         <input className="form-input" value={email} disabled />
