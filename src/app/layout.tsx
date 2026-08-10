@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { ErrorToastProvider } from "@/components/error-toast-provider";
 
@@ -9,11 +10,19 @@ export const metadata: Metadata = {
 
 const THEME_INIT_SCRIPT = `
 (function () {
+  var stored = null;
   try {
-    var stored = localStorage.getItem('coachos-theme');
-    var theme = stored === 'light' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
+    stored = localStorage.getItem('coachos-theme');
   } catch (e) {}
+  var cookieMatch = document.cookie.match(/(?:^|; )coachos-theme=(light|dark)(?:;|$)/);
+  var cookieTheme = cookieMatch ? cookieMatch[1] : null;
+  var theme = stored === 'dark' || stored === 'light'
+    ? stored
+    : cookieTheme === 'dark' || cookieTheme === 'light'
+      ? cookieTheme
+      : 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  document.documentElement.style.colorScheme = theme;
 })();
 `;
 
@@ -23,10 +32,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
+    <html lang="en" suppressHydrationWarning>
+      <Script id="theme-init" strategy="beforeInteractive">
+        {THEME_INIT_SCRIPT}
+      </Script>
       <body>
         <ErrorToastProvider>{children}</ErrorToastProvider>
       </body>

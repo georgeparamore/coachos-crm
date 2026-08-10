@@ -14,9 +14,17 @@ export function ThemeToggle() {
   }, []);
 
   function toggle() {
-    const next = theme === "dark" ? "light" : "dark";
+    const current = document.documentElement.getAttribute("data-theme");
+    const next = current === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("coachos-theme", next);
+    document.documentElement.style.colorScheme = next;
+    try {
+      localStorage.setItem("coachos-theme", next);
+    } catch {
+      // The cookie below still persists the preference in privacy modes that
+      // block localStorage.
+    }
+    document.cookie = `coachos-theme=${next}; Path=/; Max-Age=31536000; SameSite=Lax`;
     setTheme(next);
   }
 
