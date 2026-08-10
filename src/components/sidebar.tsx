@@ -20,6 +20,17 @@ export function Sidebar({ userName, userInitials, userPlan, isAdmin, role, hasCl
   const pathname = usePathname();
   const router = useRouter();
 
+  function isActive(href: string) {
+    if (href === "/clients") return pathname.startsWith("/clients") || pathname.startsWith("/crm");
+    if (href === "/courses") return pathname.startsWith("/courses") || pathname.startsWith("/students");
+    if (href === "/ads") {
+      return ["/ads", "/analytics", "/subscriptions", "/invoices", "/contracts", "/deals"].some((path) =>
+        pathname.startsWith(path),
+      );
+    }
+    return pathname.startsWith(href);
+  }
+
   let sections = role === "client" ? CLIENT_NAV_SECTIONS : NAV_SECTIONS;
   if (role !== "client" && hasClientAccess) {
     // A coach account that's *also* a client somewhere (accepting an invite
@@ -54,7 +65,7 @@ export function Sidebar({ userName, userInitials, userPlan, isAdmin, role, hasCl
             <Link
               key={item.href}
               href={item.href}
-              className={`nav-item${pathname.startsWith(item.href) ? " active" : ""}`}
+              className={`nav-item${isActive(item.href) ? " active" : ""}`}
             >
               <NavIcon name={item.icon} />
               {item.label}

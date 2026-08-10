@@ -9,11 +9,9 @@
   margin-bottom: 32px;
   padding: 27px 30px;
   border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 34%),
-    linear-gradient(135deg, var(--surface), color-mix(in srgb, var(--accent-light) 68%, var(--surface)));
-  box-shadow: 0 10px 30px rgb(24 22 18 / 4%);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: none;
 }
 
 .dashboard :global(.page-title) {
@@ -70,8 +68,8 @@
 
 .dashboard :global(.card) {
   border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgb(23 21 18 / 3%);
+  border-radius: 9px;
+  box-shadow: none;
 }
 
 .focusGrid > :global(.card) {
@@ -115,9 +113,9 @@
   overflow: hidden;
   margin-bottom: 16px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 9px;
   background: var(--surface);
-  box-shadow: 0 1px 2px rgb(23 21 18 / 3%);
+  box-shadow: none;
 }
 
 .dashboard :global(.metric) {
@@ -132,7 +130,7 @@
 }
 
 .dashboard :global(.metric:first-child) {
-  background: linear-gradient(145deg, var(--accent-light), color-mix(in srgb, var(--accent-light) 30%, var(--surface)));
+  background: var(--accent-light);
 }
 
 .dashboard :global(.metric-label) {

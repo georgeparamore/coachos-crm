@@ -11,7 +11,7 @@ const THEME_INIT_SCRIPT = `
 (function () {
   try {
     var stored = localStorage.getItem('coachos-theme');
-    var theme = stored === 'dark' ? 'dark' : 'light';
+    var theme = stored === 'light' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (e) {}
 })();

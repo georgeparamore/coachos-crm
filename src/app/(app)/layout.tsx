@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/sidebar";
 import { logServerError } from "@/lib/log-server-error";
+import { ContextNav } from "@/components/context-nav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -71,6 +72,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             You&apos;re viewing a shared demo workspace — changes are visible to other visitors and may be reset.
           </div>
         )}
+        <ContextNav isClient={profile?.role === "client"} />
         {children}
       </div>
     </div>
