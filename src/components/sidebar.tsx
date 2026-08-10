@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { NAV_SECTIONS } from "@/components/nav-config";
+import { NAV_SECTIONS, CLIENT_NAV_SECTIONS } from "@/components/nav-config";
 import { NavIcon } from "@/components/nav-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
@@ -12,11 +12,13 @@ type Props = {
   userInitials: string;
   userPlan: string;
   isAdmin?: boolean;
+  role?: string;
 };
 
-export function Sidebar({ userName, userInitials, userPlan, isAdmin }: Props) {
+export function Sidebar({ userName, userInitials, userPlan, isAdmin, role }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const sections = role === "client" ? CLIENT_NAV_SECTIONS : NAV_SECTIONS;
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -32,7 +34,7 @@ export function Sidebar({ userName, userInitials, userPlan, isAdmin }: Props) {
         <div className="logo-sub">Your coaching platform</div>
       </div>
 
-      {NAV_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <div key={section.label}>
           <div className="nav-section">{section.label}</div>
           {section.items.map((item) => (

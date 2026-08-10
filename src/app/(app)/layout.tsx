@@ -42,6 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         userInitials={initials || "C"}
         userPlan={profile?.role === "client" ? "Client" : "Coach"}
         isAdmin={isAdmin}
+        role={profile?.role}
       />
       <div className="main">
         {isDemo && (
