@@ -13,12 +13,25 @@ type Props = {
   userPlan: string;
   isAdmin?: boolean;
   role?: string;
+  hasClientAccess?: boolean;
 };
 
-export function Sidebar({ userName, userInitials, userPlan, isAdmin, role }: Props) {
+export function Sidebar({ userName, userInitials, userPlan, isAdmin, role, hasClientAccess }: Props) {
   const pathname = usePathname();
   const router = useRouter();
-  const sections = role === "client" ? CLIENT_NAV_SECTIONS : NAV_SECTIONS;
+
+  let sections = role === "client" ? CLIENT_NAV_SECTIONS : NAV_SECTIONS;
+  if (role !== "client" && hasClientAccess) {
+    // A coach account that's *also* a client somewhere (accepting an invite
+    // links the existing account rather than changing its role) still needs
+    // a way into their own classroom — append whatever CLIENT_NAV_SECTIONS
+    // items aren't already covered by the coach nav (e.g. Community).
+    const existingHrefs = new Set(sections.flatMap((s) => s.items.map((i) => i.href)));
+    const extraItems = CLIENT_NAV_SECTIONS.flatMap((s) => s.items).filter((i) => !existingHrefs.has(i.href));
+    if (extraItems.length > 0) {
+      sections = [...sections, { label: "Learn", items: extraItems }];
+    }
+  }
 
   async function handleSignOut() {
     const supabase = createClient();
