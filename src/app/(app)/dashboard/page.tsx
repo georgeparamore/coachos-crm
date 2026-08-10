@@ -14,7 +14,6 @@ import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
 import { BarList } from "@/components/charts/bar-list";
 import { SeriesChart } from "@/components/charts/series-chart";
-import styles from "./dashboard.module.css";
 
 function dayLabel(date: Date) {
   return date.toLocaleDateString(undefined, { weekday: "short" });
@@ -132,7 +131,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className={`${styles.dashboard} page`}>
+    <div className="page">
       <div className="page-header">
         <div>
           <div className="page-title">Good morning, Coach — {formattedDate}</div>
