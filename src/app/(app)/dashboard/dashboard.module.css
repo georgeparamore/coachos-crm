@@ -1,18 +1,39 @@
 .dashboard {
   width: 100%;
-  max-width: 1240px;
-  padding: 44px clamp(28px, 3.6vw, 56px) 64px;
+  max-width: 1320px;
+  padding: 42px clamp(28px, 3.8vw, 60px) 72px;
 }
 
-.dashboard :global(.page-header) {
-  margin-bottom: 30px;
+.hero {
+  align-items: center;
+  margin-bottom: 32px;
+  padding: 27px 30px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 34%),
+    linear-gradient(135deg, var(--surface), color-mix(in srgb, var(--accent-light) 68%, var(--surface)));
+  box-shadow: 0 10px 30px rgb(24 22 18 / 4%);
 }
 
 .dashboard :global(.page-title) {
-  font-size: clamp(25px, 2.4vw, 32px);
+  font-size: clamp(27px, 2.6vw, 36px);
   font-weight: 650;
   letter-spacing: -0.045em;
   line-height: 1.15;
+}
+
+.eyebrow,
+.sectionEyebrow {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  margin-bottom: 8px;
 }
 
 .dashboard :global(.page-sub) {
@@ -20,16 +41,31 @@
   color: var(--text-2);
 }
 
-.dashboard :global(.preview-grid) {
-  gap: 16px;
+.sectionHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin: 30px 0 13px;
 }
 
-.dashboard :global(.preview-grid:first-of-type) {
+.sectionHeading h2 {
+  margin-top: 3px;
+  font-size: 16px;
+  font-weight: 630;
+  letter-spacing: -0.025em;
+}
+
+.focusGrid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 4px;
 }
 
-.dashboard :global(.preview-grid:last-child) {
+.toolsGrid {
+  display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .dashboard :global(.card) {
@@ -38,8 +74,15 @@
   box-shadow: 0 1px 2px rgb(23 21 18 / 3%);
 }
 
-.dashboard :global(.preview-grid > .card) {
-  padding: 20px 22px;
+.focusGrid > :global(.card) {
+  min-height: 154px;
+  padding: 21px 23px;
+}
+
+.toolsGrid > :global(.card) {
+  min-height: 142px;
+  padding: 19px 20px;
+  background: color-mix(in srgb, var(--surface) 90%, var(--surface2));
 }
 
 .dashboard :global(.card-title) {
@@ -70,7 +113,7 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   overflow: hidden;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
@@ -78,8 +121,8 @@
 }
 
 .dashboard :global(.metric) {
-  min-height: 116px;
-  padding: 20px 22px;
+  min-height: 124px;
+  padding: 22px 24px;
   border-radius: 0;
   background: var(--surface);
 }
@@ -89,7 +132,7 @@
 }
 
 .dashboard :global(.metric:first-child) {
-  background: linear-gradient(145deg, var(--accent-light), var(--surface));
+  background: linear-gradient(145deg, var(--accent-light), color-mix(in srgb, var(--accent-light) 30%, var(--surface)));
 }
 
 .dashboard :global(.metric-label) {
@@ -100,7 +143,7 @@
 }
 
 .dashboard :global(.metric-value) {
-  font-size: 28px;
+  font-size: 31px;
   font-weight: 650;
   letter-spacing: -0.04em;
 }
@@ -115,6 +158,10 @@
 
 .dashboard :global(.two-col) {
   gap: 16px;
+}
+
+.insightsGrid {
+  margin-bottom: 4px;
 }
 
 .dashboard :global(.two-col > .card) {
@@ -154,7 +201,7 @@
 }
 
 @media (max-width: 1040px) {
-  .dashboard :global(.preview-grid:last-child) {
+  .toolsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -176,8 +223,13 @@
     padding: 28px 20px 48px;
   }
 
-  .dashboard :global(.preview-grid:first-of-type),
-  .dashboard :global(.preview-grid:last-child),
+  .hero {
+    align-items: flex-start;
+    padding: 22px;
+  }
+
+  .focusGrid,
+  .toolsGrid,
   .dashboard :global(.two-col) {
     grid-template-columns: 1fr;
   }

@@ -133,15 +133,19 @@ export default async function DashboardPage() {
 
   return (
     <div className={`${styles.dashboard} page`}>
-      <div className="page-header">
+      <div className={`${styles.hero} page-header`}>
         <div>
-          <div className="page-title">Good morning, Coach — {formattedDate}</div>
+          <div className={styles.eyebrow}>Business overview</div>
+          <div className="page-title">Good morning, {firstName}.</div>
           <div className="page-sub" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span>Here&apos;s what&apos;s happening with your business today</span>
+            <span>{formattedDate}</span>
             <span style={{ color: "var(--border-strong)" }}>·</span>
             <LiveClock timezone={timezone} />
           </div>
         </div>
+        <Link className="btn btn-primary" href="/crm">
+          Add a lead <span aria-hidden="true">+</span>
+        </Link>
       </div>
 
       <DailyCheckin firstName={firstName} todayEventCount={events.length} newLeadCount={newLeadCount} />
@@ -150,7 +154,14 @@ export default async function DashboardPage() {
 
       {queryErrors.length > 0 && <DataLoadError what="some of your dashboard data" />}
 
-      <div className="preview-grid" style={{ marginBottom: 24 }}>
+      <div className={styles.sectionHeading}>
+        <div>
+          <div className={styles.sectionEyebrow}>Today</div>
+          <h2>What needs your attention</h2>
+        </div>
+      </div>
+
+      <div className={styles.focusGrid}>
         <PreviewCard title="Recent leads" href="/crm">
           {recentLeads.length === 0 ? (
             <div className="sub">No leads yet.</div>
@@ -197,6 +208,13 @@ export default async function DashboardPage() {
         </PreviewCard>
       </div>
 
+      <div className={styles.sectionHeading}>
+        <div>
+          <div className={styles.sectionEyebrow}>Performance</div>
+          <h2>Your business at a glance</h2>
+        </div>
+      </div>
+
       <div className="metrics">
         <div className="metric">
           <div className="metric-label">Active clients</div>
@@ -217,7 +235,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="two-col" style={{ marginBottom: 24 }}>
+      <div className={`${styles.insightsGrid} two-col`}>
         <div className="card">
           <div className="chart-card-header">
             <div className="card-title" style={{ marginBottom: 0 }}>
@@ -246,7 +264,14 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="preview-grid">
+      <div className={styles.sectionHeading}>
+        <div>
+          <div className={styles.sectionEyebrow}>Workspace</div>
+          <h2>Business tools</h2>
+        </div>
+      </div>
+
+      <div className={styles.toolsGrid}>
         <PreviewCard title="Analytics" href="/analytics">
           <MiniStat label="Win rate" value={`${winRate}%`} />
           <MiniStat label="Open pipeline value" value={formatCurrencyWhole(openPipelineValue)} />
