@@ -23,6 +23,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     await logServerError(profileError, "app-shell.profile-load", { userId: user.id, userEmail: user.email });
   }
 
+  // Nav visibility for "My courses"/Community has to be based on actually
+  // having client access, not profile.role — a coach account can also be a
+  // client of another coach (accepting an invite links the existing
+  // account without changing its role), so role alone would hide the
+  // classroom from exactly that case.
+  const { count: activeMembershipCount } = await supabase
+    .from("coach_client_memberships")
+    .select("id", { count: "exact", head: true })
+    .eq("client_id", user.id)
+    .eq("status", "active");
+  const hasClientAccess = (activeMembershipCount ?? 0) > 0;
+
   const displayName = profile?.full_name || profile?.email || user.email || "Coach";
   const initials = displayName
     .split(" ")
@@ -43,6 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         userPlan={profile?.role === "client" ? "Client" : "Coach"}
         isAdmin={isAdmin}
         role={profile?.role}
+        hasClientAccess={hasClientAccess}
       />
       <div className="main">
         {isDemo && (
