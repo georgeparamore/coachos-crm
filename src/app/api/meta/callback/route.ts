@@ -8,12 +8,8 @@ import { exchangeCodeForToken, exchangeForLongLivedToken, fetchMetaUserId, fetch
 // Needs Node's crypto module (via lib/meta/crypto) — not Edge-compatible.
 export const runtime = "nodejs";
 
-function appUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-}
-
-function redirectToSettings(status: "connected" | "error", detail?: string) {
-  const url = new URL("/settings", appUrl());
+function redirectToSettings(request: Request, status: "connected" | "error", detail?: string) {
+  const url = new URL("/settings", request.url);
   url.searchParams.set("meta", status);
   if (detail) url.searchParams.set("meta_detail", detail);
   return NextResponse.redirect(url);
@@ -28,16 +24,16 @@ export async function GET(request: Request) {
   if (oauthError) {
     // User declined the Meta dialog, or Meta rejected the request — not a
     // bug, just log lightly and bounce back with a plain status.
-    return redirectToSettings("error", "declined");
+    return redirectToSettings(request, "error", "declined");
   }
 
   if (!code || !state) {
-    return redirectToSettings("error", "missing_params");
+    return redirectToSettings(request, "error", "missing_params");
   }
 
   const statePayload = verifyOAuthState(state);
   if (!statePayload) {
-    return redirectToSettings("error", "invalid_state");
+    return redirectToSettings(request, "error", "invalid_state");
   }
 
   // Defense in depth: the signed state proves the request came from a
@@ -49,10 +45,12 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user || user.id !== statePayload.coachId) {
-    return redirectToSettings("error", "session_mismatch");
+    return redirectToSettings(request, "error", "session_mismatch");
   }
 
-  const redirectUri = `${appUrl()}/api/meta/callback`;
+  // This must exactly match the URI used by /api/meta/connect, including the
+  // active Vercel alias, or Meta rejects the code exchange.
+  const redirectUri = new URL("/api/meta/callback", request.url).toString();
   const service = createServiceClient();
 
   try {
@@ -82,7 +80,7 @@ export async function GET(request: Request) {
 
     if (connectionError || !connection) {
       await logServerError(connectionError, "meta.callback.upsert_connection", { userId: user.id, userEmail: user.email });
-      return redirectToSettings("error", "save_failed");
+      return redirectToSettings(request, "error", "save_failed");
     }
 
     // Best-effort: pull the ad accounts now so the coach can pick one
@@ -114,10 +112,10 @@ export async function GET(request: Request) {
       );
     }
 
-    return redirectToSettings("connected");
+    return redirectToSettings(request, "connected");
   } catch (err) {
     const message = err instanceof MetaApiError ? err.message : err instanceof Error ? err.message : "Unknown error";
     await logServerError({ message }, "meta.callback.token_exchange", { userId: user.id, userEmail: user.email });
-    return redirectToSettings("error", "token_exchange_failed");
+    return redirectToSettings(request, "error", "token_exchange_failed");
   }
 }

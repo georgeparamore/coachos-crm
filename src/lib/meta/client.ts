@@ -80,6 +80,11 @@ export function buildAuthorizeUrl(redirectUri: string, state: string): string {
   url.searchParams.set("client_id", appId);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", state);
+  url.searchParams.set("response_type", "code");
+  // Show the permission dialog again when a coach previously declined or
+  // removed a scope instead of silently returning an under-scoped token.
+  url.searchParams.set("auth_type", "rerequest");
+  url.searchParams.set("return_scopes", "true");
   // ads_read alone only surfaces ad accounts the user personally
   // administers. business_management is required too when the account is
   // only reachable via a Business Manager the user belongs to as a

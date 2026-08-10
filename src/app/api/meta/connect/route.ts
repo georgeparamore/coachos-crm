@@ -6,19 +6,22 @@ import { buildAuthorizeUrl } from "@/lib/meta/client";
 // Needs Node's crypto module (via signOAuthState) — not Edge-compatible.
 export const runtime = "nodejs";
 
-function getRedirectUri() {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  return `${appUrl}/api/meta/callback`;
+function getRedirectUri(request: Request) {
+  // Keep the OAuth round trip on the exact host the coach is using. This is
+  // especially important for Vercel aliases: using a separately configured
+  // app URL here can make Meta reject the callback or send the coach back to
+  // an older deployment.
+  return new URL("/api/meta/callback", request.url).toString();
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
@@ -29,7 +32,7 @@ export async function GET() {
   let authorizeUrl: string;
   try {
     const state = signOAuthState(user.id);
-    authorizeUrl = buildAuthorizeUrl(getRedirectUri(), state);
+    authorizeUrl = buildAuthorizeUrl(getRedirectUri(request), state);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Meta Ads is not configured yet";
     return NextResponse.json({ error: message }, { status: 500 });
