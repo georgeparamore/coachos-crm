@@ -13,6 +13,13 @@ function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
+function startOfWeek(date: Date) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+}
+
 function buildMonthGrid(monthStart: Date) {
   const firstWeekday = monthStart.getDay();
   const gridStart = new Date(monthStart);
@@ -27,6 +34,15 @@ function buildMonthGrid(monthStart: Date) {
   return days;
 }
 
+function buildWeekGrid(cursor: Date) {
+  const start = startOfWeek(cursor);
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
+}
+
 export function CalendarView({
   initialEvents,
   leads,
@@ -38,11 +54,15 @@ export function CalendarView({
 }) {
   const router = useRouter();
   const [events, setEvents] = useState(initialEvents);
+  const [view, setView] = useState<"week" | "month">("week");
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [modalState, setModalState] = useState<{ event: CalendarEvent | null } | null>(null);
 
-  const days = useMemo(() => buildMonthGrid(monthCursor), [monthCursor]);
+  const days = useMemo(
+    () => (view === "month" ? buildMonthGrid(monthCursor) : buildWeekGrid(selectedDate)),
+    [monthCursor, selectedDate, view],
+  );
   const today = new Date();
 
   const eventsByDay = useMemo(() => {
@@ -74,6 +94,23 @@ export function CalendarView({
     setMonthCursor(startOfMonth(date));
     setModalState({ event });
   }
+
+  function moveCursor(direction: -1 | 1) {
+    if (view === "month") {
+      setMonthCursor((cursor) => new Date(cursor.getFullYear(), cursor.getMonth() + direction, 1));
+      return;
+    }
+    setSelectedDate((date) => {
+      const next = new Date(date);
+      next.setDate(next.getDate() + direction * 7);
+      setMonthCursor(startOfMonth(next));
+      return next;
+    });
+  }
+
+  const rangeLabel = view === "month"
+    ? monthCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })
+    : `${days[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
 
   async function handleSave(input: {
     title: string;
@@ -122,21 +159,15 @@ export function CalendarView({
       <div className="two-col" style={{ gridTemplateColumns: "1fr 320px", alignItems: "start" }}>
         <div className="card">
           <div className="calendar-header">
-            <button
-              className="btn btn-sm"
-              onClick={() => setMonthCursor((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-            >
-              ←
-            </button>
-            <div className="calendar-month-label">
-              {monthCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+            <div className="calendar-navigation">
+              <button className="btn btn-sm" onClick={() => moveCursor(-1)} aria-label={`Previous ${view}`}>←</button>
+              <div className="calendar-month-label">{rangeLabel}</div>
+              <button className="btn btn-sm" onClick={() => moveCursor(1)} aria-label={`Next ${view}`}>→</button>
             </div>
-            <button
-              className="btn btn-sm"
-              onClick={() => setMonthCursor((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-            >
-              →
-            </button>
+            <div className="calendar-view-toggle" aria-label="Calendar view">
+              <button className={view === "week" ? "active" : ""} onClick={() => setView("week")}>Week</button>
+              <button className={view === "month" ? "active" : ""} onClick={() => setView("month")}>Month</button>
+            </div>
           </div>
 
           <div className="calendar-grid" style={{ marginBottom: 6 }}>
@@ -146,12 +177,12 @@ export function CalendarView({
               </div>
             ))}
           </div>
-          <div className="calendar-grid">
+          <div className={`calendar-grid ${view === "week" ? "is-week" : "is-month"}`}>
             {days.map((day) => {
               const dayEvents = eventsByDay.get(day.toDateString()) ?? [];
               const classes = [
                 "calendar-day",
-                day.getMonth() !== monthCursor.getMonth() ? "is-outside" : "",
+                view === "month" && day.getMonth() !== monthCursor.getMonth() ? "is-outside" : "",
                 isSameDay(day, today) ? "is-today" : "",
                 isSameDay(day, selectedDate) ? "is-selected" : "",
               ]
@@ -160,10 +191,29 @@ export function CalendarView({
               return (
                 <div className={classes} key={day.toISOString()} onClick={() => setSelectedDate(day)}>
                   <div className="calendar-day-number">{day.getDate()}</div>
-                  {dayEvents.length > 0 && (
+                  {view === "month" && dayEvents.length > 0 && (
                     <div className="calendar-day-dots">
                       {dayEvents.slice(0, 4).map((e) => (
                         <div className="calendar-day-dot" key={e.id} />
+                      ))}
+                    </div>
+                  )}
+                  {view === "week" && (
+                    <div className="calendar-week-events">
+                      {dayEvents.length === 0 ? (
+                        <span className="calendar-no-events">Open</span>
+                      ) : dayEvents.map((event) => (
+                        <button
+                          className="calendar-week-event"
+                          key={event.id}
+                          onClick={(clickEvent) => {
+                            clickEvent.stopPropagation();
+                            setModalState({ event });
+                          }}
+                        >
+                          <span>{new Date(event.start_time).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
+                          {event.title}
+                        </button>
                       ))}
                     </div>
                   )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { NavIcon } from "@/components/nav-icon";
 
 // A rotating pool of encouraging openers — index picked by day-of-year so it's
@@ -16,11 +16,6 @@ const DAILY_MESSAGES = [
   "Small, steady steps built everything you see in this dashboard. Keep going — it's working.",
 ];
 
-function todayKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 function dayOfYear(d: Date): number {
   const start = new Date(d.getFullYear(), 0, 0);
   const diff = d.getTime() - start.getTime();
@@ -34,8 +29,6 @@ function getGreeting(hour: number): string {
   return "Good evening";
 }
 
-const DISMISS_KEY_PREFIX = "coachos-checkin-dismissed-";
-
 export function DailyCheckin({
   firstName,
   todayEventCount,
@@ -45,22 +38,13 @@ export function DailyCheckin({
   todayEventCount: number;
   newLeadCount: number;
 }) {
-  const [dismissed, setDismissed] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
 
   const now = useMemo(() => new Date(), []);
   const greeting = useMemo(() => getGreeting(now.getHours()), [now]);
   const message = useMemo(() => DAILY_MESSAGES[dayOfYear(now) % DAILY_MESSAGES.length], [now]);
 
-  useEffect(() => {
-    // Whether today's card was already dismissed lives in localStorage, which
-    // isn't knowable during server rendering.
-    const key = DISMISS_KEY_PREFIX + todayKey();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDismissed(localStorage.getItem(key) === "1");
-  }, []);
-
   function dismiss() {
-    localStorage.setItem(DISMISS_KEY_PREFIX + todayKey(), "1");
     setDismissed(true);
   }
 
