@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AVATAR_CLASSES, initialsOf } from "@/lib/format";
 import { EVENT_TYPE_BADGE, EVENT_TYPE_LABEL, type CalendarEvent } from "@/lib/events";
@@ -24,7 +25,12 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase.from("profiles").select("timezone, full_name").eq("id", user!.id).single();
+  const { data: profile } = await supabase.from("profiles").select("timezone, full_name, role").eq("id", user!.id).single();
+
+  // This whole page is coach-oriented business KPIs — a client landing here
+  // (e.g. straight after login) belongs on their own classroom instead.
+  if (profile?.role === "client") redirect("/classroom");
+
   const timezone = profile?.timezone || "UTC";
   const firstName = profile?.full_name?.trim().split(" ")[0] || "there";
 

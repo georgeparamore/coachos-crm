@@ -29,6 +29,21 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
+// Separate nav for client accounts — everything above is coach/admin
+// tooling (business management, ad spend, leads) that a client has no use
+// for and, for most of it, no RLS access to anyway. Settings isn't included
+// here since /settings is entirely business-profile/integrations content;
+// a client-appropriate settings page is a follow-up, not built yet.
+export const CLIENT_NAV_SECTIONS: NavSection[] = [
+  {
+    label: "Learn",
+    items: [
+      { href: "/classroom", label: "My courses", icon: "play" },
+      { href: "/community", label: "Community", icon: "message" },
+    ],
+  },
+];
+
 // Analytics, Deal evaluations, Subscriptions, Invoices, and Contracts are
 // real, working, Stripe-connected Phase 1-2 features — intentionally hidden
 // from the nav (not deleted) while DJS CRM's new direction is being built
