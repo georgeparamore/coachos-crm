@@ -50,6 +50,7 @@ export function QuickAdd({ coachId }: { coachId: string }) {
     end_time: string | null;
     location: string;
     lead_id: string | null;
+    client_id: string | null;
   }) {
     const supabase = createClient();
     const { error } = await supabase.from("events").insert({ ...input, coach_id: coachId });

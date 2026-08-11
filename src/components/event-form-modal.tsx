@@ -20,6 +20,8 @@ export function EventFormModal({
   onSave,
   onDelete,
   defaultLeadId,
+  defaultClientId,
+  defaultClientName,
 }: {
   event: CalendarEvent | null;
   defaultDate: Date;
@@ -33,9 +35,12 @@ export function EventFormModal({
     end_time: string | null;
     location: string;
     lead_id: string | null;
+    client_id: string | null;
   }) => Promise<void>;
   onDelete?: () => Promise<void>;
   defaultLeadId?: string;
+  defaultClientId?: string;
+  defaultClientName?: string;
 }) {
   const initialStart = event ? new Date(event.start_time) : (() => {
     const d = new Date(defaultDate);
@@ -67,6 +72,7 @@ export function EventFormModal({
         end_time: endTime ? new Date(endTime).toISOString() : null,
         location,
         lead_id: leadId || null,
+        client_id: event?.client_id ?? defaultClientId ?? null,
       });
     } catch (err) {
       setError(getErrorMessage(err));
@@ -120,6 +126,11 @@ export function EventFormModal({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+          {(event?.client_id || defaultClientId) && (
+            <div className="notes-box" style={{ marginBottom: 14 }}>
+              Linked client: <strong>{defaultClientName || "Client"}</strong>
             </div>
           )}
           <div className="form-row">

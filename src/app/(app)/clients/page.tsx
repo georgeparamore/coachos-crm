@@ -4,6 +4,7 @@ import { RevokeInviteButton } from "@/components/revoke-invite-button";
 import { EnrollClientButton } from "@/components/enroll-client-button";
 import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
+import Link from "next/link";
 
 export default async function ClientsPage() {
   const supabase = await createClient();
@@ -111,7 +112,7 @@ export default async function ClientsPage() {
             return (
               <div className="list-row" key={membership.id}>
                 <div>
-                  <div className="name">{profile?.full_name || profile?.email || "Unknown client"}</div>
+                  <Link className="name client-name-link" href={`/clients/${membership.client_id}`}>{profile?.full_name || profile?.email || "Unknown client"}</Link>
                   <div className="sub">
                     {profile?.email}
                     {enrolledTitles.length > 0 ? ` · Enrolled in ${enrolledTitles.join(", ")}` : ""}

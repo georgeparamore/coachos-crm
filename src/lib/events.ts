@@ -4,6 +4,7 @@ export type CalendarEvent = {
   id: string;
   coach_id: string;
   lead_id: string | null;
+  client_id: string | null;
   title: string;
   description: string | null;
   event_type: EventType;
