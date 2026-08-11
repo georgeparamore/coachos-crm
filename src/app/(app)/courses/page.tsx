@@ -4,7 +4,8 @@ import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
 import type { Course, CourseModule, Lesson } from "@/lib/courses";
 
-export default async function CoursesPage() {
+export default async function CoursesPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+  const { new: createNew } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -65,6 +66,7 @@ export default async function CoursesPage() {
         initialModulesByCourse={modulesByCourse}
         initialLessonsByModule={lessonsByModule}
         coachId={user!.id}
+        initialCreate={createNew === "1"}
       />
     </div>
   );

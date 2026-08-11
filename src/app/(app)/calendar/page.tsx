@@ -5,8 +5,8 @@ import { logServerError } from "@/lib/log-server-error";
 import type { CalendarEvent } from "@/lib/events";
 import type { Lead } from "@/lib/leads";
 
-export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ lead?: string; client?: string }> }) {
-  const { lead: initialLeadId, client: initialClientId } = await searchParams;
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ lead?: string; client?: string; new?: string }> }) {
+  const { lead: initialLeadId, client: initialClientId, new: createNew } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -47,6 +47,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         initialLeadId={initialLeadId}
         initialClientId={initialClientId}
         initialClientName={initialClient?.full_name || initialClient?.email || undefined}
+        initialCreate={createNew === "1"}
       />
     </div>
   );

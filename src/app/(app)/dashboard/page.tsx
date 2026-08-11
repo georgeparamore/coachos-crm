@@ -13,6 +13,7 @@ import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
 import { BarList } from "@/components/charts/bar-list";
 import { SeriesChart } from "@/components/charts/series-chart";
+import { OnboardingChecklist, type OnboardingStep } from "@/components/onboarding-checklist";
 import styles from "./dashboard.module.css";
 
 function dayLabel(date: Date) {
@@ -37,7 +38,7 @@ export default async function DashboardPage() {
   const now = new Date();
   const { start: startOfDay, end: endOfDay } = getZonedDayBounds(timezone, now);
 
-  const [leadsRes, eventsRes, futureClientEventsRes, membershipsRes, invitesRes, enrollmentsRes, subsRes, invoicesRes, contractsRes] = await Promise.all([
+  const [leadsRes, eventsRes, eventCountRes, futureClientEventsRes, membershipsRes, invitesRes, enrollmentsRes, coursesRes, subsRes, invoicesRes, contractsRes] = await Promise.all([
     supabase
       .from("leads")
       .select("id, name, stage, source, value_cents, follow_up_at, created_at")
@@ -50,10 +51,12 @@ export default async function DashboardPage() {
       .gte("start_time", startOfDay.toISOString())
       .lt("start_time", endOfDay.toISOString())
       .order("start_time", { ascending: true }),
+    supabase.from("events").select("id", { count: "exact", head: true }).eq("coach_id", user!.id),
     supabase.from("events").select("client_id, start_time").eq("coach_id", user!.id).not("client_id", "is", null).gte("start_time", now.toISOString()),
     supabase.from("coach_client_memberships").select("client_id").eq("coach_id", user!.id).eq("status", "active"),
     supabase.from("client_invites").select("id, email, full_name, invited_at").eq("coach_id", user!.id).eq("status", "pending").order("invited_at", { ascending: true }),
     supabase.from("enrollments").select("id, client_id, enrolled_at").eq("coach_id", user!.id),
+    supabase.from("courses").select("id", { count: "exact", head: true }).eq("coach_id", user!.id),
     supabase.from("subscriptions").select("status, plan_key").eq("coach_id", user!.id),
     supabase.from("invoices").select("status, amount_cents, created_at").eq("coach_id", user!.id),
     supabase.from("contracts").select("status").eq("coach_id", user!.id),
@@ -75,7 +78,7 @@ export default async function DashboardPage() {
     enrollmentIds.length > 0 ? supabase.from("lesson_progress").select("enrollment_id, progress_percent, completed_at, updated_at").in("enrollment_id", enrollmentIds) : Promise.resolve({ data: [], error: null }),
   ]);
 
-  const queryErrors = [leadsRes.error, eventsRes.error, futureClientEventsRes.error, membershipsRes.error, invitesRes.error, enrollmentsRes.error, clientProfilesRes.error, progressRes.error, subsRes.error, invoicesRes.error, contractsRes.error].filter(
+  const queryErrors = [leadsRes.error, eventsRes.error, eventCountRes.error, futureClientEventsRes.error, membershipsRes.error, invitesRes.error, enrollmentsRes.error, coursesRes.error, clientProfilesRes.error, progressRes.error, subsRes.error, invoicesRes.error, contractsRes.error].filter(
     Boolean,
   );
   if (queryErrors.length > 0) {
@@ -123,6 +126,13 @@ export default async function DashboardPage() {
   }
   const priorityOrder = { high: 0, medium: 1, low: 2 };
   attentionItems.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+  const onboardingSteps: OnboardingStep[] = [
+    { label: "Add your first lead", detail: "Start building your pipeline", href: "/crm?new=1", complete: allLeads.length > 0 },
+    { label: "Create a program", detail: "Outline what your clients will learn", href: "/courses?new=1", complete: (coursesRes.count ?? 0) > 0 },
+    { label: "Invite a client", detail: "Bring your first client into the workspace", href: "/clients#invite", complete: (memberships ?? []).length > 0 || (pendingInvitesData ?? []).length > 0 },
+    { label: "Schedule a session", detail: "Put your first call on the calendar", href: "/calendar?new=1", complete: (eventCountRes.count ?? 0) > 0 },
+  ];
 
   const winRate = allLeads.length > 0 ? Math.round((activeClients / allLeads.length) * 100) : 0;
   const openPipelineValue = allLeads
@@ -196,6 +206,8 @@ export default async function DashboardPage() {
       </div>
 
       <DailyCheckin firstName={firstName} todayEventCount={events.length} newLeadCount={newLeadCount} />
+
+      <OnboardingChecklist firstName={firstName} steps={onboardingSteps} />
 
       <TodayReminders events={events} />
 

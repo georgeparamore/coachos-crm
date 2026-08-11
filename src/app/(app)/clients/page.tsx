@@ -73,7 +73,7 @@ export default async function ClientsPage() {
 
       {queryErrors.length > 0 && <DataLoadError what="your clients" />}
 
-      <div className="card">
+      <div className="card" id="invite">
         <div className="card-title">Invite a client</div>
         <InviteClientForm />
       </div>

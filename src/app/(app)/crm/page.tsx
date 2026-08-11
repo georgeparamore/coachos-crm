@@ -7,9 +7,9 @@ import type { Lead } from "@/lib/leads";
 export default async function CrmPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lead?: string }>;
+  searchParams: Promise<{ lead?: string; new?: string }>;
 }) {
-  const { lead: initialLeadId } = await searchParams;
+  const { lead: initialLeadId, new: createNew } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -34,7 +34,7 @@ export default async function CrmPage({
 
       {error && <DataLoadError what="your leads" />}
 
-      <CrmBoard initialLeads={(leads as Lead[]) ?? []} coachId={user!.id} initialLeadId={initialLeadId} />
+      <CrmBoard initialLeads={(leads as Lead[]) ?? []} coachId={user!.id} initialLeadId={initialLeadId} initialCreate={createNew === "1"} />
     </div>
   );
 }

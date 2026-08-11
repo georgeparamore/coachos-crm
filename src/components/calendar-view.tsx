@@ -50,6 +50,7 @@ export function CalendarView({
   initialLeadId,
   initialClientId,
   initialClientName,
+  initialCreate,
 }: {
   initialEvents: CalendarEvent[];
   leads: Lead[];
@@ -57,16 +58,17 @@ export function CalendarView({
   initialLeadId?: string;
   initialClientId?: string;
   initialClientName?: string;
+  initialCreate?: boolean;
 }) {
   const router = useRouter();
   const [events, setEvents] = useState(initialEvents);
   const [view, setView] = useState<"week" | "month">("week");
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [modalState, setModalState] = useState<{ event: CalendarEvent | null } | null>(() => initialLeadId || initialClientId ? { event: null } : null);
+  const [modalState, setModalState] = useState<{ event: CalendarEvent | null } | null>(() => initialLeadId || initialClientId || initialCreate ? { event: null } : null);
 
   useEffect(() => {
-    if (initialLeadId || initialClientId) router.replace("/calendar");
+    if (initialLeadId || initialClientId || initialCreate) router.replace("/calendar");
     // Only clean the one-time lead shortcut from the URL.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

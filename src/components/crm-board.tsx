@@ -11,21 +11,23 @@ export function CrmBoard({
   initialLeads,
   coachId,
   initialLeadId,
+  initialCreate,
 }: {
   initialLeads: Lead[];
   coachId: string;
   initialLeadId?: string;
+  initialCreate?: boolean;
 }) {
   const router = useRouter();
   const { showError } = useErrorToast();
   const [leads, setLeads] = useState(initialLeads);
   const [editingLead, setEditingLead] = useState<Lead | null | undefined>(() =>
-    initialLeadId ? initialLeads.find((l) => l.id === initialLeadId) : undefined,
+    initialCreate ? null : initialLeadId ? initialLeads.find((l) => l.id === initialLeadId) : undefined,
   );
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialLeadId) router.replace("/crm");
+    if (initialLeadId || initialCreate) router.replace("/crm");
     // Only meant to run once, to clean up the URL param this page loaded with.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { NavIcon } from "@/components/nav-icon";
@@ -22,11 +22,13 @@ export function CoursesBoard({
   initialModulesByCourse,
   initialLessonsByModule,
   coachId,
+  initialCreate,
 }: {
   initialCourses: Course[];
   initialModulesByCourse: Record<string, CourseModule>;
   initialLessonsByModule: Record<string, Lesson[]>;
   coachId: string;
+  initialCreate?: boolean;
 }) {
   const router = useRouter();
   const { showError } = useErrorToast();
@@ -34,8 +36,14 @@ export function CoursesBoard({
   const [modulesByCourse, setModulesByCourse] = useState(initialModulesByCourse);
   const [lessonsByModule, setLessonsByModule] = useState(initialLessonsByModule);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [editingCourse, setEditingCourse] = useState<Course | null | undefined>(undefined);
+  const [editingCourse, setEditingCourse] = useState<Course | null | undefined>(initialCreate ? null : undefined);
   const [addingLessonFor, setAddingLessonFor] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialCreate) router.replace("/courses");
+    // Clean the one-time creation shortcut from the URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function ensureModule(courseId: string): Promise<CourseModule> {
     const existing = modulesByCourse[courseId];
