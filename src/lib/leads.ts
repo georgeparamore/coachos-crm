@@ -18,6 +18,7 @@ export type Lead = {
   value_cents: number | null;
   fit_score: number | null;
   notes: string | null;
+  follow_up_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -31,4 +32,5 @@ export type LeadInput = {
   value_cents: number | null;
   fit_score: number | null;
   notes: string;
+  follow_up_at: string | null;
 };

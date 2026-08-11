@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AVATAR_CLASSES, initialsOf } from "@/lib/format";
 import { EVENT_TYPE_BADGE, EVENT_TYPE_LABEL, type CalendarEvent } from "@/lib/events";
 import { PLANS } from "@/lib/stripe";
 import { formatCurrencyWhole } from "@/lib/analytics";
@@ -38,10 +37,10 @@ export default async function DashboardPage() {
   const now = new Date();
   const { start: startOfDay, end: endOfDay } = getZonedDayBounds(timezone, now);
 
-  const [leadsRes, eventsRes, subsRes, invoicesRes, contractsRes] = await Promise.all([
+  const [leadsRes, eventsRes, futureClientEventsRes, membershipsRes, invitesRes, enrollmentsRes, subsRes, invoicesRes, contractsRes] = await Promise.all([
     supabase
       .from("leads")
-      .select("id, name, stage, source, value_cents, created_at")
+      .select("id, name, stage, source, value_cents, follow_up_at, created_at")
       .eq("coach_id", user!.id)
       .order("created_at", { ascending: false }),
     supabase
@@ -51,17 +50,32 @@ export default async function DashboardPage() {
       .gte("start_time", startOfDay.toISOString())
       .lt("start_time", endOfDay.toISOString())
       .order("start_time", { ascending: true }),
+    supabase.from("events").select("client_id, start_time").eq("coach_id", user!.id).not("client_id", "is", null).gte("start_time", now.toISOString()),
+    supabase.from("coach_client_memberships").select("client_id").eq("coach_id", user!.id).eq("status", "active"),
+    supabase.from("client_invites").select("id, email, full_name, invited_at").eq("coach_id", user!.id).eq("status", "pending").order("invited_at", { ascending: true }),
+    supabase.from("enrollments").select("id, client_id, enrolled_at").eq("coach_id", user!.id),
     supabase.from("subscriptions").select("status, plan_key").eq("coach_id", user!.id),
     supabase.from("invoices").select("status, amount_cents, created_at").eq("coach_id", user!.id),
     supabase.from("contracts").select("status").eq("coach_id", user!.id),
   ]);
   const { data: leads } = leadsRes;
   const { data: todaysEvents } = eventsRes;
+  const { data: futureClientEvents } = futureClientEventsRes;
+  const { data: memberships } = membershipsRes;
+  const { data: pendingInvitesData } = invitesRes;
+  const { data: enrollmentsData } = enrollmentsRes;
   const { data: subscriptions } = subsRes;
   const { data: invoices } = invoicesRes;
   const { data: contracts } = contractsRes;
 
-  const queryErrors = [leadsRes.error, eventsRes.error, subsRes.error, invoicesRes.error, contractsRes.error].filter(
+  const clientIds = (memberships ?? []).map((membership) => membership.client_id);
+  const enrollmentIds = (enrollmentsData ?? []).map((enrollment) => enrollment.id);
+  const [clientProfilesRes, progressRes] = await Promise.all([
+    clientIds.length > 0 ? supabase.from("profiles").select("id, full_name, email").in("id", clientIds) : Promise.resolve({ data: [], error: null }),
+    enrollmentIds.length > 0 ? supabase.from("lesson_progress").select("enrollment_id, progress_percent, completed_at, updated_at").in("enrollment_id", enrollmentIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const queryErrors = [leadsRes.error, eventsRes.error, futureClientEventsRes.error, membershipsRes.error, invitesRes.error, enrollmentsRes.error, clientProfilesRes.error, progressRes.error, subsRes.error, invoicesRes.error, contractsRes.error].filter(
     Boolean,
   );
   if (queryErrors.length > 0) {
@@ -73,9 +87,42 @@ export default async function DashboardPage() {
   const allLeads = leads ?? [];
   const activeClients = allLeads.filter((l) => l.stage === "signed").length;
   const openLeads = allLeads.filter((l) => l.stage !== "signed").length;
-  const recentLeads = allLeads.slice(0, 5);
   const newLeadCount = allLeads.filter((l) => l.stage === "new").length;
   const events = (todaysEvents as CalendarEvent[]) ?? [];
+  const clientNameById = new Map((clientProfilesRes.data ?? []).map((client) => [client.id, client.full_name || client.email || "Client"]));
+
+  type AttentionItem = { id: string; title: string; detail: string; href: string; label: string; priority: "high" | "medium" | "low" };
+  const attentionItems: AttentionItem[] = [];
+  const dueByEndOfDay = endOfDay.getTime();
+  for (const lead of allLeads) {
+    if (lead.stage === "signed") continue;
+    if (lead.follow_up_at) {
+      const followUpTime = new Date(lead.follow_up_at).getTime();
+      if (followUpTime < now.getTime()) attentionItems.push({ id: `overdue-${lead.id}`, title: lead.name, detail: `Follow-up was due ${new Date(lead.follow_up_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`, href: `/crm?lead=${lead.id}`, label: "Overdue", priority: "high" });
+      else if (followUpTime <= dueByEndOfDay) attentionItems.push({ id: `due-${lead.id}`, title: lead.name, detail: `Follow up at ${new Date(lead.follow_up_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`, href: `/crm?lead=${lead.id}`, label: "Today", priority: "medium" });
+    } else {
+      attentionItems.push({ id: `unscheduled-${lead.id}`, title: lead.name, detail: "Open lead has no next follow-up", href: `/crm?lead=${lead.id}`, label: "Needs next step", priority: "low" });
+    }
+  }
+  for (const invite of pendingInvitesData ?? []) attentionItems.push({ id: `invite-${invite.id}`, title: invite.full_name || invite.email, detail: `Invitation pending since ${new Date(invite.invited_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`, href: "/clients", label: "Pending invite", priority: "medium" });
+  const scheduledClientIds = new Set((futureClientEvents ?? []).map((event) => event.client_id).filter(Boolean));
+  for (const membership of memberships ?? []) if (!scheduledClientIds.has(membership.client_id)) attentionItems.push({ id: `session-${membership.client_id}`, title: clientNameById.get(membership.client_id) || "Client", detail: "No upcoming coaching session", href: `/calendar?client=${membership.client_id}`, label: "Schedule", priority: "medium" });
+
+  const progressByEnrollment = new Map<string, { progress_percent: number; completed_at: string | null; updated_at: string }[]>();
+  for (const row of progressRes.data ?? []) progressByEnrollment.set(row.enrollment_id, [...(progressByEnrollment.get(row.enrollment_id) ?? []), row]);
+  const stalledBefore = now.getTime() - 14 * 24 * 60 * 60 * 1000;
+  for (const enrollment of enrollmentsData ?? []) {
+    const rows = progressByEnrollment.get(enrollment.id) ?? [];
+    if (rows.length === 0) {
+      if (new Date(enrollment.enrolled_at).getTime() < stalledBefore) attentionItems.push({ id: `not-started-${enrollment.id}`, title: clientNameById.get(enrollment.client_id) || "Client", detail: "Has not started an enrolled program", href: `/clients/${enrollment.client_id}`, label: "Not started", priority: "low" });
+      continue;
+    }
+    const latestUpdate = Math.max(...rows.map((row) => new Date(row.updated_at).getTime()));
+    const incomplete = rows.some((row) => !row.completed_at && row.progress_percent < 100);
+    if (incomplete && latestUpdate < stalledBefore) attentionItems.push({ id: `stalled-${enrollment.id}`, title: clientNameById.get(enrollment.client_id) || "Client", detail: "Program progress has been quiet for 14+ days", href: `/clients/${enrollment.client_id}`, label: "Stalled", priority: "low" });
+  }
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
+  attentionItems.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
   const winRate = allLeads.length > 0 ? Math.round((activeClients / allLeads.length) * 100) : 0;
   const openPipelineValue = allLeads
@@ -162,28 +209,14 @@ export default async function DashboardPage() {
       </div>
 
       <div className={styles.focusGrid}>
-        <PreviewCard title="Recent leads" href="/crm">
-          {recentLeads.length === 0 ? (
-            <div className="sub">No leads yet.</div>
+        <div className={`card ${styles.attentionCard}`}>
+          <div className="card-title-row"><div className="card-title">Priority queue</div><Link href="/crm">View leads →</Link></div>
+          {attentionItems.length === 0 ? (
+            <div className={styles.allClear}><span>✓</span><div><strong>You’re all caught up</strong><p>No overdue follow-ups or client actions right now.</p></div></div>
           ) : (
-            recentLeads.slice(0, 4).map((lead) => (
-              <Link
-                href={`/crm?lead=${lead.id}`}
-                className="list-row list-row-clickable"
-                key={lead.id}
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <div className="list-row-left">
-                  <div className={`avatar av-sm ${AVATAR_CLASSES[lead.id.charCodeAt(0) % AVATAR_CLASSES.length]}`}>
-                    {initialsOf(lead.name)}
-                  </div>
-                  <div className="name">{lead.name}</div>
-                </div>
-                <span className="badge badge-blue">{lead.stage.replace("_", " ")}</span>
-              </Link>
-            ))
+            attentionItems.slice(0, 5).map((item) => <Link href={item.href} className={styles.attentionRow} key={item.id}><i className={styles[item.priority]} /><div><strong>{item.title}</strong><span>{item.detail}</span></div><b>{item.label}</b><span>→</span></Link>)
           )}
-        </PreviewCard>
+        </div>
 
         <PreviewCard title="Today's schedule" href="/calendar">
           {events.length === 0 ? (
@@ -230,8 +263,8 @@ export default async function DashboardPage() {
         </div>
         <div className="metric">
           <div className="metric-label">Course enrollments</div>
-          <div className="metric-value">—</div>
-          <div className="metric-delta delta-neutral">Connect courses in Phase 3</div>
+          <div className="metric-value">{(enrollmentsData ?? []).length}</div>
+          <div className="metric-delta delta-neutral">Across active clients</div>
         </div>
       </div>
 

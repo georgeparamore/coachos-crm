@@ -5,6 +5,13 @@ import { LEAD_STAGES, type Lead, type LeadInput, type LeadStage } from "@/lib/le
 import { getErrorMessage } from "@/lib/errors";
 import { useErrorToast } from "@/components/error-toast-provider";
 
+function toLocalDateTime(value: string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  const pad = (number: number) => String(number).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 type Props = {
   lead: Lead | null;
   onClose: () => void;
@@ -22,6 +29,7 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert }: Pr
   const [value, setValue] = useState(lead?.value_cents != null ? String(lead.value_cents / 100) : "");
   const [fitScore, setFitScore] = useState(lead?.fit_score != null ? String(lead.fit_score) : "");
   const [notes, setNotes] = useState(lead?.notes ?? "");
+  const [followUpAt, setFollowUpAt] = useState(toLocalDateTime(lead?.follow_up_at));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { showError } = useErrorToast();
@@ -40,6 +48,7 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert }: Pr
         value_cents: value ? Math.round(parseFloat(value) * 100) : null,
         fit_score: fitScore ? parseInt(fitScore, 10) : null,
         notes,
+        follow_up_at: followUpAt ? new Date(followUpAt).toISOString() : null,
       });
     } catch (err) {
       setError(getErrorMessage(err));
@@ -121,6 +130,10 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert }: Pr
               value={fitScore}
               onChange={(e) => setFitScore(e.target.value)}
             />
+          </div>
+          <div className="form-row">
+            <label className="form-label">Next follow-up</label>
+            <input className="form-input" type="datetime-local" value={followUpAt} onChange={(e) => setFollowUpAt(e.target.value)} />
           </div>
           <div className="form-row">
             <label className="form-label">Notes</label>

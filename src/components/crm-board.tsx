@@ -148,7 +148,14 @@ export function CrmBoard({
                       .filter(Boolean)
                       .join(" · ") || "No details yet"}
                   </div>
-                  {lead.fit_score != null && <span className="badge badge-blue">Fit {lead.fit_score}/10</span>}
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                    {lead.fit_score != null && <span className="badge badge-blue">Fit {lead.fit_score}/10</span>}
+                    {lead.follow_up_at && lead.stage !== "signed" && (
+                      <span className={`badge ${new Date(lead.follow_up_at) < new Date() ? "badge-red" : "badge-amber"}`}>
+                        {new Date(lead.follow_up_at) < new Date() ? "Overdue" : `Next ${new Date(lead.follow_up_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
               {stageLeads.length === 0 && (
