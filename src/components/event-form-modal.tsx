@@ -19,6 +19,7 @@ export function EventFormModal({
   onClose,
   onSave,
   onDelete,
+  defaultLeadId,
 }: {
   event: CalendarEvent | null;
   defaultDate: Date;
@@ -34,6 +35,7 @@ export function EventFormModal({
     lead_id: string | null;
   }) => Promise<void>;
   onDelete?: () => Promise<void>;
+  defaultLeadId?: string;
 }) {
   const initialStart = event ? new Date(event.start_time) : (() => {
     const d = new Date(defaultDate);
@@ -45,7 +47,7 @@ export function EventFormModal({
   const [eventType, setEventType] = useState<EventType>(event?.event_type ?? "meeting");
   const [startTime, setStartTime] = useState(toLocalInputValue(initialStart));
   const [endTime, setEndTime] = useState(event?.end_time ? toLocalInputValue(new Date(event.end_time)) : "");
-  const [leadId, setLeadId] = useState(event?.lead_id ?? "");
+  const [leadId, setLeadId] = useState(event?.lead_id ?? defaultLeadId ?? "");
   const [location, setLocation] = useState(event?.location ?? "");
   const [description, setDescription] = useState(event?.description ?? "");
   const [saving, setSaving] = useState(false);

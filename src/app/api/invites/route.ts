@@ -6,10 +6,6 @@ import { sendEmail } from "@/lib/email/resend";
 
 export const runtime = "nodejs";
 
-function appUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-}
-
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -50,7 +46,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create invite" }, { status: 500 });
   }
 
-  const inviteUrl = `${appUrl()}/invite/${invite.token}`;
+  const inviteUrl = new URL(`/invite/${invite.token}`, request.url).toString();
 
   const coachName = user.user_metadata?.full_name || user.email || "Your coach";
   const { sent, error: emailError } = await sendEmail({

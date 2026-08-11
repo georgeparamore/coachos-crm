@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/sidebar";
 import { logServerError } from "@/lib/log-server-error";
 import { ContextNav } from "@/components/context-nav";
+import { QuickAdd } from "@/components/quick-add";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -74,6 +75,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         )}
         <ContextNav isClient={profile?.role === "client"} />
         {children}
+        {profile?.role !== "client" && <QuickAdd coachId={user.id} />}
       </div>
     </div>
   );

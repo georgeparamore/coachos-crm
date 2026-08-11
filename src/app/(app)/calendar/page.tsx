@@ -5,7 +5,8 @@ import { logServerError } from "@/lib/log-server-error";
 import type { CalendarEvent } from "@/lib/events";
 import type { Lead } from "@/lib/leads";
 
-export default async function CalendarPage() {
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ lead?: string }> }) {
+  const { lead: initialLeadId } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -36,7 +37,7 @@ export default async function CalendarPage() {
 
       {queryErrors.length > 0 && <DataLoadError what="your calendar" />}
 
-      <CalendarView initialEvents={(events as CalendarEvent[]) ?? []} leads={(leads as Lead[]) ?? []} coachId={user!.id} />
+      <CalendarView initialEvents={(events as CalendarEvent[]) ?? []} leads={(leads as Lead[]) ?? []} coachId={user!.id} initialLeadId={initialLeadId} />
     </div>
   );
 }

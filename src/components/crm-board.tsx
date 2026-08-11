@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LEAD_STAGES, type Lead, type LeadInput } from "@/lib/leads";
 import { LeadFormModal } from "@/components/lead-form-modal";
+import { useErrorToast } from "@/components/error-toast-provider";
 
 export function CrmBoard({
   initialLeads,
@@ -16,10 +17,12 @@ export function CrmBoard({
   initialLeadId?: string;
 }) {
   const router = useRouter();
+  const { showError } = useErrorToast();
   const [leads, setLeads] = useState(initialLeads);
   const [editingLead, setEditingLead] = useState<Lead | null | undefined>(() =>
     initialLeadId ? initialLeads.find((l) => l.id === initialLeadId) : undefined,
   );
+  const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialLeadId) router.replace("/crm");
@@ -63,9 +66,49 @@ export function CrmBoard({
     router.refresh();
   }
 
+  async function moveLead(leadId: string, stage: Lead["stage"]) {
+    const lead = leads.find((item) => item.id === leadId);
+    if (!lead || lead.stage === stage) return;
+    const previous = leads;
+    setMovingLeadId(leadId);
+    setLeads((items) => items.map((item) => item.id === leadId ? { ...item, stage } : item));
+    const supabase = createClient();
+    const { error } = await supabase.from("leads").update({ stage }).eq("id", leadId);
+    if (error) {
+      setLeads(previous);
+      setMovingLeadId(null);
+      throw error;
+    }
+    setMovingLeadId(null);
+    router.refresh();
+  }
+
+  async function convertLead() {
+    if (!editingLead?.email) throw new Error("Add an email address before converting this lead.");
+    const response = await fetch("/api/invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: editingLead.email, fullName: editingLead.name }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok && response.status !== 409) throw new Error(body.error || "Failed to create client invitation");
+    await moveLead(editingLead.id, "signed");
+    setEditingLead(undefined);
+    router.push("/clients");
+  }
+
+  const openPipelineValue = leads
+    .filter((lead) => lead.stage !== "signed")
+    .reduce((total, lead) => total + (lead.value_cents ?? 0), 0);
+
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+      <div className="pipeline-toolbar">
+        <div className="pipeline-summary">
+          <span><strong>{leads.filter((lead) => lead.stage !== "signed").length}</strong> open leads</span>
+          <span><strong>${(openPipelineValue / 100).toLocaleString()}</strong> monthly pipeline</span>
+          <span><strong>{leads.filter((lead) => lead.stage === "signed").length}</strong> converted</span>
+        </div>
         <button className="btn btn-primary" onClick={() => setEditingLead(null)}>
           Add lead
         </button>
@@ -75,12 +118,30 @@ export function CrmBoard({
         {LEAD_STAGES.map((stage) => {
           const stageLeads = leads.filter((l) => l.stage === stage.key);
           return (
-            <div className="pipeline-col" key={stage.key}>
+            <div
+              className="pipeline-col"
+              key={stage.key}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const leadId = event.dataTransfer.getData("text/lead-id");
+                if (leadId) void moveLead(leadId, stage.key).catch((error) => showError(error, "crm.lead-move"));
+              }}
+            >
               <div className="pipeline-col-header">
                 {stage.label} <span className={`badge ${stage.badge}`}>{stageLeads.length}</span>
               </div>
               {stageLeads.map((lead) => (
-                <div className="pipeline-card" key={lead.id} onClick={() => setEditingLead(lead)}>
+                <div
+                  className={`pipeline-card${movingLeadId === lead.id ? " is-moving" : ""}`}
+                  key={lead.id}
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData("text/lead-id", lead.id);
+                    event.dataTransfer.effectAllowed = "move";
+                  }}
+                  onClick={() => setEditingLead(lead)}
+                >
                   <div className="pipeline-card-name">{lead.name}</div>
                   <div className="pipeline-card-meta">
                     {[lead.source, lead.value_cents != null ? `$${lead.value_cents / 100}/mo` : null]
@@ -106,6 +167,7 @@ export function CrmBoard({
           onClose={() => setEditingLead(undefined)}
           onSave={handleSave}
           onDelete={editingLead ? handleDelete : undefined}
+          onConvert={editingLead ? convertLead : undefined}
         />
       )}
     </>

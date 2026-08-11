@@ -10,9 +10,10 @@ type Props = {
   onClose: () => void;
   onSave: (input: LeadInput) => Promise<void>;
   onDelete?: () => Promise<void>;
+  onConvert?: () => Promise<void>;
 };
 
-export function LeadFormModal({ lead, onClose, onSave, onDelete }: Props) {
+export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert }: Props) {
   const [name, setName] = useState(lead?.name ?? "");
   const [email, setEmail] = useState(lead?.email ?? "");
   const [phone, setPhone] = useState(lead?.phone ?? "");
@@ -51,7 +52,29 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-eyebrow">{lead ? "Lead record" : "Pipeline"}</div>
         <div className="card-title">{lead ? "Edit lead" : "Add lead"}</div>
+        {lead && (
+          <div className="lead-action-strip">
+            {lead.email && <a className="btn btn-sm" href={`mailto:${lead.email}`}>Email</a>}
+            {lead.phone && <a className="btn btn-sm" href={`tel:${lead.phone}`}>Call</a>}
+            <a className="btn btn-sm" href={`/calendar?lead=${lead.id}`}>Schedule follow-up</a>
+            {onConvert && lead.stage !== "signed" && (
+              <button className="btn btn-sm btn-accent" type="button" disabled={saving} onClick={async () => {
+                setSaving(true);
+                setError(null);
+                try {
+                  await onConvert();
+                } catch (err) {
+                  setError(getErrorMessage(err));
+                  showError(err, "crm.lead-convert");
+                } finally {
+                  setSaving(false);
+                }
+              }}>Convert to client</button>
+            )}
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="form-row">
             <label className="form-label">Name</label>

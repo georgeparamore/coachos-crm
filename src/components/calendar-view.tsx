@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { EVENT_TYPE_BADGE, EVENT_TYPE_LABEL, isSameDay, type CalendarEvent, type EventType } from "@/lib/events";
@@ -47,17 +47,25 @@ export function CalendarView({
   initialEvents,
   leads,
   coachId,
+  initialLeadId,
 }: {
   initialEvents: CalendarEvent[];
   leads: Lead[];
   coachId: string;
+  initialLeadId?: string;
 }) {
   const router = useRouter();
   const [events, setEvents] = useState(initialEvents);
   const [view, setView] = useState<"week" | "month">("week");
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [modalState, setModalState] = useState<{ event: CalendarEvent | null } | null>(null);
+  const [modalState, setModalState] = useState<{ event: CalendarEvent | null } | null>(() => initialLeadId ? { event: null } : null);
+
+  useEffect(() => {
+    if (initialLeadId) router.replace("/calendar");
+    // Only clean the one-time lead shortcut from the URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const days = useMemo(
     () => (view === "month" ? buildMonthGrid(monthCursor) : buildWeekGrid(selectedDate)),
@@ -277,6 +285,7 @@ export function CalendarView({
           event={modalState.event}
           defaultDate={selectedDate}
           leads={leads}
+          defaultLeadId={modalState.event ? undefined : initialLeadId}
           onClose={() => setModalState(null)}
           onSave={handleSave}
           onDelete={modalState.event ? handleDelete : undefined}
