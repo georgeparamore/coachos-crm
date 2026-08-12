@@ -30,7 +30,7 @@ export const NAV_SECTIONS: NavSection[] = [
 export const CONTEXT_NAV = [
   { paths: ["/clients", "/crm"], label: "People", items: [{ href: "/clients", label: "Clients" }, { href: "/crm", label: "Leads" }] },
   { paths: ["/courses", "/students"], label: "Programs", items: [{ href: "/courses", label: "Courses" }, { href: "/students", label: "Progress" }] },
-  { paths: ["/community"], label: "Community", items: [{ href: "/community", label: "Feed" }, { href: "/community#members", label: "Members" }, { href: "/community#events", label: "Events" }, { href: "/community#live", label: "Live" }] },
+  { paths: ["/community"], label: "Community", items: [{ href: "/community", label: "Feed" }, { href: "/community#members", label: "Members" }] },
   { paths: ["/ads", "/analytics", "/subscriptions", "/invoices", "/contracts", "/deals"], label: "Growth", items: [{ href: "/ads", label: "Ad performance" }, { href: "/analytics", label: "Analytics" }, { href: "/subscriptions", label: "Subscriptions" }, { href: "/invoices", label: "Invoices" }, { href: "/contracts", label: "Contracts" }, { href: "/deals", label: "Deals" }] },
 ] as const;
 
