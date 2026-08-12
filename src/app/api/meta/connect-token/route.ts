@@ -77,6 +77,17 @@ export async function POST(request: Request) {
       const accounts = await fetchAdAccounts(trimmedToken);
       accountsFound = accounts.length;
       if (accounts.length > 0) {
+        // Reconnecting may expose a different set of accounts (especially
+        // after switching Meta apps). Clear the previous selection before
+        // auto-selecting the sole account returned by the new token.
+        if (accounts.length === 1) {
+          const { error: clearSelectionError } = await service
+            .from("meta_ad_accounts")
+            .update({ is_selected: false })
+            .eq("connection_id", connection.id);
+          if (clearSelectionError) throw clearSelectionError;
+        }
+
         await service.from("meta_ad_accounts").upsert(
           accounts.map((a) => ({
             coach_id: user.id,

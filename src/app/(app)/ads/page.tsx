@@ -45,7 +45,14 @@ export default async function AdsPage() {
   // meta_ad_accounts / meta_campaigns / meta_ad_insights_daily are all
   // coach-readable directly (coach_id = auth.uid()) — no service client needed.
   const [accountRes, campaignsRes, insightsRes] = await Promise.all([
-    supabase.from("meta_ad_accounts").select("name, currency").eq("connection_id", connection.id).eq("is_selected", true).maybeSingle(),
+    supabase
+      .from("meta_ad_accounts")
+      .select("name, currency")
+      .eq("connection_id", connection.id)
+      .eq("is_selected", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     supabase.from("meta_campaigns").select("id, meta_campaign_id, name, meta_status, objective").eq("connection_id", connection.id),
     supabase
       .from("meta_ad_insights_daily")
