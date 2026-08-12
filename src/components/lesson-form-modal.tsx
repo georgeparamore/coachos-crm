@@ -6,14 +6,15 @@ import { getErrorMessage } from "@/lib/errors";
 import { useErrorToast } from "@/components/error-toast-provider";
 
 type Props = {
+  lesson?: { title: string; description: string | null; external_video_url: string | null } | null;
   onClose: () => void;
   onSave: (input: LessonInput) => Promise<void>;
 };
 
-export function LessonFormModal({ onClose, onSave }: Props) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
+export function LessonFormModal({ lesson, onClose, onSave }: Props) {
+  const [title, setTitle] = useState(lesson?.title ?? "");
+  const [description, setDescription] = useState(lesson?.description ?? "");
+  const [videoUrl, setVideoUrl] = useState(lesson?.external_video_url ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { showError } = useErrorToast();
@@ -35,18 +36,18 @@ export function LessonFormModal({ onClose, onSave }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="card-title">New lesson</div>
+        <div className="card-title">{lesson ? "Edit lesson" : "New lesson"}</div>
         <form onSubmit={handleSubmit}>
           <div className="form-row">
             <label className="form-label">Title</label>
             <input className="form-input" required autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div className="form-row">
-            <label className="form-label">Description</label>
+            <label className="form-label">Lesson notes</label>
             <textarea className="form-input" value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
           <div className="form-row">
-            <label className="form-label">Video URL</label>
+            <label className="form-label">Video or resource URL</label>
             <input
               className="form-input"
               placeholder="https://…"

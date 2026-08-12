@@ -40,9 +40,9 @@ export default async function ClassroomPage() {
     enrollmentIds.length > 0
       ? await supabase
           .from("lesson_progress")
-          .select("enrollment_id, lesson_id, completed_at")
+          .select("enrollment_id, lesson_id, completed_at, progress_percent")
           .in("enrollment_id", enrollmentIds)
-      : { data: [] as { enrollment_id: string; lesson_id: string; completed_at: string | null }[], error: null };
+      : { data: [] as { enrollment_id: string; lesson_id: string; completed_at: string | null; progress_percent: number }[], error: null };
 
   const queryErrors = [enrollmentsError, coursesError, modulesError, lessonsError, progressError].filter(Boolean);
   if (queryErrors.length > 0) {
@@ -54,12 +54,9 @@ export default async function ClassroomPage() {
   const enrollmentIdByCourse: Record<string, string> = {};
   for (const e of enrollments ?? []) enrollmentIdByCourse[e.course_id] = e.id;
 
-  // One module per course today — same simplification the coach-side
-  // CoursesBoard uses, matching the design reference's flat per-course
-  // lesson list.
-  const modulesByCourse: Record<string, CourseModule> = {};
+  const modulesByCourse: Record<string, CourseModule[]> = {};
   for (const m of (modules as CourseModule[] | null) ?? []) {
-    if (!modulesByCourse[m.course_id]) modulesByCourse[m.course_id] = m;
+    (modulesByCourse[m.course_id] ??= []).push(m);
   }
 
   const lessonsByModule: Record<string, Lesson[]> = {};

@@ -1,32 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { NavIcon } from "@/components/nav-icon";
 import { CourseFormModal } from "@/components/course-form-modal";
 import { LessonFormModal } from "@/components/lesson-form-modal";
 import { useErrorToast } from "@/components/error-toast-provider";
-import {
-  COURSE_STATUS_BADGE,
-  COURSE_STATUS_LABEL,
-  type Course,
-  type CourseInput,
-  type CourseModule,
-  type Lesson,
-  type LessonInput,
-} from "@/lib/courses";
+import { COURSE_STATUS_LABEL, type Course, type CourseInput, type CourseModule, type Lesson, type LessonInput } from "@/lib/courses";
 
-export function CoursesBoard({
-  initialCourses,
-  initialModulesByCourse,
-  initialLessonsByModule,
-  coachId,
-  initialCreate,
-}: {
+type LessonEditor = { courseId: string; moduleId: string; lesson: Lesson | null };
+
+export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLessonsByModule, enrollmentCountByCourse, coachId, initialCreate }: {
   initialCourses: Course[];
-  initialModulesByCourse: Record<string, CourseModule>;
+  initialModulesByCourse: Record<string, CourseModule[]>;
   initialLessonsByModule: Record<string, Lesson[]>;
+  enrollmentCountByCourse: Record<string, number>;
   coachId: string;
   initialCreate?: boolean;
 }) {
@@ -35,205 +24,139 @@ export function CoursesBoard({
   const [courses, setCourses] = useState(initialCourses);
   const [modulesByCourse, setModulesByCourse] = useState(initialModulesByCourse);
   const [lessonsByModule, setLessonsByModule] = useState(initialLessonsByModule);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(initialCourses[0]?.id ?? null);
   const [editingCourse, setEditingCourse] = useState<Course | null | undefined>(initialCreate ? null : undefined);
-  const [addingLessonFor, setAddingLessonFor] = useState<string | null>(null);
+  const [lessonEditor, setLessonEditor] = useState<LessonEditor | null>(null);
+  const [newModuleFor, setNewModuleFor] = useState<string | null>(null);
+  const [moduleTitle, setModuleTitle] = useState("");
+  const [working, setWorking] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (initialCreate) router.replace("/courses");
-    // Clean the one-time creation shortcut from the URL.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { if (initialCreate) router.replace("/courses"); }, [initialCreate, router]);
 
-  async function ensureModule(courseId: string): Promise<CourseModule> {
-    const existing = modulesByCourse[courseId];
-    if (existing) return existing;
+  const totals = useMemo(() => {
+    const lessons = Object.values(lessonsByModule).reduce((sum, rows) => sum + rows.length, 0);
+    const students = Object.values(enrollmentCountByCourse).reduce((sum, count) => sum + count, 0);
+    return { lessons, students, published: courses.filter((course) => course.status === "published").length };
+  }, [courses, enrollmentCountByCourse, lessonsByModule]);
 
+  async function saveCourse(input: CourseInput) {
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("course_modules")
-      .insert({ course_id: courseId, title: "Lessons", position: 0 })
-      .select()
-      .single();
-    if (error) throw error;
-    setModulesByCourse((prev) => ({ ...prev, [courseId]: data as CourseModule }));
-    return data as CourseModule;
-  }
-
-  async function handleSaveCourse(input: CourseInput) {
-    const supabase = createClient();
-
     if (editingCourse) {
-      const { data, error } = await supabase
-        .from("courses")
-        .update(input)
-        .eq("id", editingCourse.id)
-        .select()
-        .single();
+      const { data, error } = await supabase.from("courses").update(input).eq("id", editingCourse.id).select().single();
       if (error) throw error;
-      setCourses((prev) => prev.map((c) => (c.id === data.id ? (data as Course) : c)));
+      setCourses((current) => current.map((course) => course.id === data.id ? data as Course : course));
     } else {
-      const { data, error } = await supabase
-        .from("courses")
-        .insert({ ...input, coach_id: coachId })
-        .select()
-        .single();
+      const { data, error } = await supabase.from("courses").insert({ ...input, coach_id: coachId }).select().single();
       if (error) throw error;
-      setCourses((prev) => [data as Course, ...prev]);
-      await ensureModule(data.id);
+      setCourses((current) => [data as Course, ...current]);
+      setModulesByCourse((current) => ({ ...current, [data.id]: [] }));
+      setExpandedId(data.id);
     }
-
     setEditingCourse(undefined);
     router.refresh();
   }
 
-  async function handleDeleteCourse() {
+  async function deleteCourse() {
     if (!editingCourse) return;
-    const supabase = createClient();
-    const { error } = await supabase.from("courses").delete().eq("id", editingCourse.id);
+    const { error } = await createClient().from("courses").delete().eq("id", editingCourse.id);
     if (error) throw error;
-    setCourses((prev) => prev.filter((c) => c.id !== editingCourse.id));
+    setCourses((current) => current.filter((course) => course.id !== editingCourse.id));
     setEditingCourse(undefined);
     router.refresh();
   }
 
-  async function handleAddLesson(courseId: string, input: LessonInput) {
+  async function addModule(courseId: string) {
+    const title = moduleTitle.trim();
+    if (!title) return;
+    setWorking(`module-${courseId}`);
     try {
-      const courseModule = await ensureModule(courseId);
-      const supabase = createClient();
-      const existingLessons = lessonsByModule[courseModule.id] ?? [];
-      const { data, error } = await supabase
-        .from("lessons")
-        .insert({
-          module_id: courseModule.id,
-          title: input.title,
-          description: input.description || null,
-          external_video_url: input.external_video_url || null,
-          video_status: input.external_video_url ? "ready" : "processing",
-          position: existingLessons.length,
-        })
-        .select()
-        .single();
+      const currentModules = modulesByCourse[courseId] ?? [];
+      const { data, error } = await createClient().from("course_modules").insert({ course_id: courseId, title, position: currentModules.length }).select().single();
       if (error) throw error;
-      setLessonsByModule((prev) => ({
-        ...prev,
-        [courseModule.id]: [...(prev[courseModule.id] ?? []), data as Lesson],
-      }));
-      setAddingLessonFor(null);
+      setModulesByCourse((current) => ({ ...current, [courseId]: [...(current[courseId] ?? []), data as CourseModule] }));
+      setLessonsByModule((current) => ({ ...current, [data.id]: [] }));
+      setModuleTitle("");
+      setNewModuleFor(null);
       router.refresh();
-    } catch (err) {
-      showError(err, "courses.lesson-save");
-    }
+    } catch (error) { showError(error, "courses.module-save"); } finally { setWorking(null); }
   }
 
-  async function handleDeleteLesson(moduleId: string, lessonId: string) {
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.from("lessons").delete().eq("id", lessonId);
+  async function saveLesson(input: LessonInput) {
+    if (!lessonEditor) return;
+    const { courseId, moduleId, lesson } = lessonEditor;
+    const supabase = createClient();
+    if (lesson) {
+      const { data, error } = await supabase.from("lessons").update({ title: input.title, description: input.description || null, external_video_url: input.external_video_url || null, video_status: "ready" }).eq("id", lesson.id).select().single();
       if (error) throw error;
-      setLessonsByModule((prev) => ({
-        ...prev,
-        [moduleId]: (prev[moduleId] ?? []).filter((l) => l.id !== lessonId),
-      }));
-      router.refresh();
-    } catch (err) {
-      showError(err, "courses.lesson-delete");
+      setLessonsByModule((current) => ({ ...current, [moduleId]: (current[moduleId] ?? []).map((row) => row.id === lesson.id ? data as Lesson : row) }));
+    } else {
+      const rows = lessonsByModule[moduleId] ?? [];
+      const { data, error } = await supabase.from("lessons").insert({ module_id: moduleId, title: input.title, description: input.description || null, external_video_url: input.external_video_url || null, video_status: "ready", position: rows.length }).select().single();
+      if (error) throw error;
+      setLessonsByModule((current) => ({ ...current, [moduleId]: [...(current[moduleId] ?? []), data as Lesson] }));
     }
+    setLessonEditor(null);
+    setExpandedId(courseId);
+    router.refresh();
   }
 
-  return (
-    <div>
-      <div className="page-header" style={{ marginBottom: 14 }}>
-        <div className="page-sub">
-          {courses.length} course{courses.length === 1 ? "" : "s"}
-        </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setEditingCourse(null)}>
-          <NavIcon name="plus" /> New course
-        </button>
-      </div>
+  async function deleteLesson(moduleId: string, lessonId: string) {
+    setWorking(lessonId);
+    try {
+      const { error } = await createClient().from("lessons").delete().eq("id", lessonId);
+      if (error) throw error;
+      setLessonsByModule((current) => ({ ...current, [moduleId]: (current[moduleId] ?? []).filter((lesson) => lesson.id !== lessonId) }));
+      router.refresh();
+    } catch (error) { showError(error, "courses.lesson-delete"); } finally { setWorking(null); }
+  }
 
-      {courses.length === 0 && (
-        <div className="empty-state">
-          <p>No courses yet — create one to start building out your curriculum.</p>
-        </div>
-      )}
+  async function moveLesson(moduleId: string, index: number, direction: -1 | 1) {
+    const rows = [...(lessonsByModule[moduleId] ?? [])];
+    const target = index + direction;
+    if (!rows[index] || !rows[target]) return;
+    [rows[index], rows[target]] = [rows[target], rows[index]];
+    const positioned = rows.map((lesson, position) => ({ ...lesson, position }));
+    setLessonsByModule((current) => ({ ...current, [moduleId]: positioned }));
+    const supabase = createClient();
+    const results = await Promise.all(positioned.map((lesson) => supabase.from("lessons").update({ position: lesson.position }).eq("id", lesson.id)));
+    const failed = results.find((result) => result.error);
+    if (failed?.error) showError(failed.error, "courses.lesson-reorder");
+    router.refresh();
+  }
 
+  return <>
+    <section className="programs-hero">
+      <div><span className="eyebrow">Curriculum studio</span><h1>Programs</h1><p>Design the path, enroll your people, and see exactly where momentum slows down.</p></div>
+      <button className="btn btn-accent" onClick={() => setEditingCourse(null)}><NavIcon name="plus" /> New program</button>
+    </section>
+
+    <div className="program-metrics"><div><strong>{courses.length}</strong><span>Programs</span></div><div><strong>{totals.lessons}</strong><span>Lessons</span></div><div><strong>{totals.students}</strong><span>Enrollments</span></div><div><strong>{totals.published}</strong><span>Published</span></div></div>
+
+    {courses.length === 0 ? <div className="card program-empty"><NavIcon name="book-open" /><h2>Build your first program</h2><p>Create a clear sequence of sections and lessons your clients can follow at their own pace.</p><button className="btn btn-accent" onClick={() => setEditingCourse(null)}>Create program</button></div> : <div className="program-list">
       {courses.map((course) => {
+        const modules = modulesByCourse[course.id] ?? [];
+        const lessonCount = modules.reduce((sum, module) => sum + (lessonsByModule[module.id]?.length ?? 0), 0);
         const expanded = expandedId === course.id;
-        const courseModule = modulesByCourse[course.id];
-        const lessons = courseModule ? (lessonsByModule[courseModule.id] ?? []) : [];
-
-        return (
-          <div key={course.id} className="card">
-            <div className="card-title-row">
-              <div>
-                <span className={`badge ${COURSE_STATUS_BADGE[course.status]}`} style={{ marginBottom: 6 }}>
-                  {COURSE_STATUS_LABEL[course.status]}
-                </span>
-                <div className="name" style={{ fontSize: 16, marginTop: 4 }}>
-                  {course.title}
-                </div>
-                {course.description && <div className="sub">{course.description}</div>}
-                <div className="mini-stat-label">
-                  {lessons.length} lesson{lessons.length === 1 ? "" : "s"}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button className="btn btn-sm" onClick={() => setExpandedId(expanded ? null : course.id)}>
-                  {expanded ? "Hide lessons" : "Manage lessons"}
-                </button>
-                <button className="btn btn-sm" onClick={() => setEditingCourse(course)}>
-                  Edit
-                </button>
-              </div>
-            </div>
-
-            {expanded && (
-              <div>
-                {lessons.map((lesson, i) => (
-                  <div key={lesson.id} className="list-row">
-                    <div className="list-row-left">
-                      <NavIcon name="video" />
-                      <div>
-                        <span className="name">
-                          {i + 1}. {lesson.title}
-                        </span>
-                        {lesson.description && <div className="sub">{lesson.description}</div>}
-                      </div>
-                    </div>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => courseModule && handleDeleteLesson(courseModule.id, lesson.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-                {lessons.length === 0 && <p className="sub">No lessons yet.</p>}
-                <button className="btn btn-sm" style={{ marginTop: 10 }} onClick={() => setAddingLessonFor(course.id)}>
-                  <NavIcon name="plus" /> Add lesson
-                </button>
-              </div>
-            )}
+        return <article className={`card program-card${expanded ? " expanded" : ""}`} key={course.id}>
+          <div className="program-card-head">
+            <div className="program-index">{String(courses.indexOf(course) + 1).padStart(2, "0")}</div>
+            <div className="program-card-copy"><div className="program-status"><span className={`program-status-dot ${course.status}`} />{COURSE_STATUS_LABEL[course.status]}</div><h2>{course.title}</h2><p>{course.description || "Add a short promise for this program."}</p><div className="program-meta"><span>{modules.length} sections</span><span>{lessonCount} lessons</span><span>{enrollmentCountByCourse[course.id] ?? 0} enrolled</span></div></div>
+            <div className="program-card-actions"><button className="btn btn-sm" onClick={() => setEditingCourse(course)}>Settings</button><button className="btn btn-sm btn-primary" onClick={() => setExpandedId(expanded ? null : course.id)}>{expanded ? "Close builder" : "Open builder"}</button></div>
           </div>
-        );
+          {expanded && <div className="program-builder">
+            <div className="program-builder-title"><div><span className="eyebrow">Curriculum</span><h3>Program outline</h3></div><button className="btn btn-sm" onClick={() => { setNewModuleFor(course.id); setModuleTitle(""); }}><NavIcon name="plus" /> Add section</button></div>
+            {newModuleFor === course.id && <div className="program-inline-form"><input autoFocus className="form-input" placeholder="Section title, e.g. Foundations" value={moduleTitle} onChange={(event) => setModuleTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addModule(course.id); }} /><button className="btn btn-primary btn-sm" disabled={!moduleTitle.trim() || working !== null} onClick={() => addModule(course.id)}>Add</button><button className="btn btn-sm" onClick={() => setNewModuleFor(null)}>Cancel</button></div>}
+            {modules.length === 0 && <div className="program-section-empty"><p>Add a section to begin organizing the client journey.</p></div>}
+            {modules.map((module, moduleIndex) => { const lessons = lessonsByModule[module.id] ?? []; return <section className="program-section" key={module.id}>
+              <header><span>{String(moduleIndex + 1).padStart(2, "0")}</span><div><h3>{module.title}</h3><p>{lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}</p></div><button className="btn btn-sm" onClick={() => setLessonEditor({ courseId: course.id, moduleId: module.id, lesson: null })}><NavIcon name="plus" /> Lesson</button></header>
+              <div className="program-lessons">{lessons.map((lesson, index) => <div className="program-lesson" key={lesson.id}><div className="program-lesson-number">{index + 1}</div><div className="program-lesson-icon"><NavIcon name={lesson.external_video_url ? "video" : "file-text"} /></div><div><strong>{lesson.title}</strong><span>{lesson.external_video_url ? "Video lesson" : "Reading / assignment"}{lesson.description ? ` · ${lesson.description}` : ""}</span></div><div className="program-lesson-actions"><button aria-label="Move lesson up" disabled={index === 0} onClick={() => moveLesson(module.id, index, -1)}>↑</button><button aria-label="Move lesson down" disabled={index === lessons.length - 1} onClick={() => moveLesson(module.id, index, 1)}>↓</button><button onClick={() => setLessonEditor({ courseId: course.id, moduleId: module.id, lesson })}>Edit</button><button disabled={working === lesson.id} onClick={() => deleteLesson(module.id, lesson.id)}>Remove</button></div></div>)}</div>
+            </section>; })}
+          </div>}
+        </article>;
       })}
+    </div>}
 
-      {editingCourse !== undefined && (
-        <CourseFormModal
-          course={editingCourse}
-          onClose={() => setEditingCourse(undefined)}
-          onSave={handleSaveCourse}
-          onDelete={editingCourse ? handleDeleteCourse : undefined}
-        />
-      )}
-
-      {addingLessonFor && (
-        <LessonFormModal
-          onClose={() => setAddingLessonFor(null)}
-          onSave={(input) => handleAddLesson(addingLessonFor, input)}
-        />
-      )}
-    </div>
-  );
+    {editingCourse !== undefined && <CourseFormModal course={editingCourse} onClose={() => setEditingCourse(undefined)} onSave={saveCourse} onDelete={editingCourse ? deleteCourse : undefined} />}
+    {lessonEditor && <LessonFormModal lesson={lessonEditor.lesson} onClose={() => setLessonEditor(null)} onSave={saveLesson} />}
+  </>;
 }

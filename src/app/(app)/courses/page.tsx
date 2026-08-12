@@ -26,28 +26,36 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
 
   const moduleIds = (modules ?? []).map((m) => m.id);
 
-  const { data: lessons, error: lessonsError } =
+  const [lessonsResult, enrollmentsResult] = await Promise.all([
     moduleIds.length > 0
-      ? await supabase.from("lessons").select("*").in("module_id", moduleIds).order("position", { ascending: true })
-      : { data: [] as Lesson[], error: null };
+      ? supabase.from("lessons").select("*").in("module_id", moduleIds).order("position", { ascending: true })
+      : Promise.resolve({ data: [] as Lesson[], error: null }),
+    courseIds.length > 0
+      ? supabase.from("enrollments").select("course_id").in("course_id", courseIds)
+      : Promise.resolve({ data: [] as { course_id: string }[], error: null }),
+  ]);
+  const { data: lessons, error: lessonsError } = lessonsResult;
 
-  const queryErrors = [coursesError, modulesError, lessonsError].filter(Boolean);
+  const queryErrors = [coursesError, modulesError, lessonsError, enrollmentsResult.error].filter(Boolean);
   if (queryErrors.length > 0) {
     await Promise.all(
       queryErrors.map((err) => logServerError(err, "courses.load", { userId: user!.id, userEmail: user!.email })),
     );
   }
 
-  // One module per course today (the UI treats lessons as flat per-course,
-  // matching the design reference) — map course_id -> its single module.
-  const modulesByCourse: Record<string, CourseModule> = {};
+  const modulesByCourse: Record<string, CourseModule[]> = {};
   for (const m of (modules as CourseModule[] | null) ?? []) {
-    if (!modulesByCourse[m.course_id]) modulesByCourse[m.course_id] = m;
+    (modulesByCourse[m.course_id] ??= []).push(m);
   }
 
   const lessonsByModule: Record<string, Lesson[]> = {};
   for (const l of (lessons as Lesson[] | null) ?? []) {
     (lessonsByModule[l.module_id] ??= []).push(l);
+  }
+
+  const enrollmentCountByCourse: Record<string, number> = {};
+  for (const enrollment of enrollmentsResult.data ?? []) {
+    enrollmentCountByCourse[enrollment.course_id] = (enrollmentCountByCourse[enrollment.course_id] ?? 0) + 1;
   }
 
   return (
@@ -65,6 +73,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
         initialCourses={(courses as Course[]) ?? []}
         initialModulesByCourse={modulesByCourse}
         initialLessonsByModule={lessonsByModule}
+        enrollmentCountByCourse={enrollmentCountByCourse}
         coachId={user!.id}
         initialCreate={createNew === "1"}
       />
