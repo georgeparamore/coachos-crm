@@ -7,17 +7,21 @@ import { createClient } from "@/lib/supabase/client";
 import { NavIcon } from "@/components/nav-icon";
 import { CourseFormModal } from "@/components/course-form-modal";
 import { LessonFormModal } from "@/components/lesson-form-modal";
+import { CourseEnrollmentModal, type CourseClient } from "@/components/course-enrollment-modal";
 import { useErrorToast } from "@/components/error-toast-provider";
 import { COURSE_STATUS_LABEL, type Course, type CourseInput, type CourseModule, type Lesson, type LessonInput } from "@/lib/courses";
 
 type LessonEditor = { courseId: string; moduleId: string; lesson: Lesson | null };
 type DragItem = { type: "module"; courseId: string; moduleId: string } | { type: "lesson"; moduleId: string; lessonId: string };
 
-export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLessonsByModule, enrollmentCountByCourse, coachId, initialCreate }: {
+export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLessonsByModule, enrollmentCountByCourse: initialEnrollmentCountByCourse, enrolledClientIdsByCourse: initialEnrolledClientIdsByCourse, enrollmentProgressByCourseClient, clients, coachId, initialCreate }: {
   initialCourses: Course[];
   initialModulesByCourse: Record<string, CourseModule[]>;
   initialLessonsByModule: Record<string, Lesson[]>;
   enrollmentCountByCourse: Record<string, number>;
+  enrolledClientIdsByCourse: Record<string, string[]>;
+  clients: CourseClient[];
+  enrollmentProgressByCourseClient: Record<string, number>;
   coachId: string;
   initialCreate?: boolean;
 }) {
@@ -37,6 +41,8 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
   const [working, setWorking] = useState<string | null>(null);
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [enrollmentCourse, setEnrollmentCourse] = useState<Course | null>(null);
+  const [enrolledClientIdsByCourse, setEnrolledClientIdsByCourse] = useState(initialEnrolledClientIdsByCourse);
   const [dirtyCourses, setDirtyCourses] = useState(() => new Set<string>());
   const savedModulesRef = useRef(structuredClone(initialModulesByCourse));
   const savedLessonsRef = useRef(structuredClone(initialLessonsByModule));
@@ -45,9 +51,9 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
 
   const totals = useMemo(() => {
     const lessons = Object.values(lessonsByModule).reduce((sum, rows) => sum + rows.length, 0);
-    const students = Object.values(enrollmentCountByCourse).reduce((sum, count) => sum + count, 0);
+    const students = Object.values(enrolledClientIdsByCourse).reduce((sum, rows) => sum + rows.length, 0);
     return { lessons, students, published: courses.filter((course) => course.status === "published").length };
-  }, [courses, enrollmentCountByCourse, lessonsByModule]);
+  }, [courses, enrolledClientIdsByCourse, lessonsByModule]);
 
   async function saveCourse(input: CourseInput) {
     const supabase = createClient();
@@ -271,8 +277,8 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
         return <article className={`card program-card${expanded ? " expanded" : ""}`} key={course.id}>
           <div className="program-card-head">
             <div className="program-index">{String(courses.indexOf(course) + 1).padStart(2, "0")}</div>
-            <div className="program-card-copy"><div className="program-status"><span className={`program-status-dot ${course.status}`} />{COURSE_STATUS_LABEL[course.status]}</div><h2>{course.title}</h2><p>{course.description || "Add a short promise for this program."}</p><div className="program-meta"><span>{modules.length} sections</span><span>{lessonCount} lessons</span><span>{enrollmentCountByCourse[course.id] ?? 0} enrolled</span></div></div>
-            <div className="program-card-actions"><Link aria-disabled={hasUnsavedChanges} className={`btn btn-sm${hasUnsavedChanges ? " disabled" : ""}`} href={`/courses/${course.id}/preview`} onClick={(event) => { if (hasUnsavedChanges) event.preventDefault(); }} target="_blank"><NavIcon name="eye" /> Preview</Link><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => setEditingCourse(course)}>Settings</button><button className="btn btn-sm btn-primary" disabled={hasUnsavedChanges && expanded} onClick={() => setExpandedId(expanded ? null : course.id)}>{expanded ? "Close builder" : "Open builder"}</button></div>
+            <div className="program-card-copy"><div className="program-status"><span className={`program-status-dot ${course.status}`} />{COURSE_STATUS_LABEL[course.status]}</div><h2>{course.title}</h2><p>{course.description || "Add a short promise for this program."}</p><div className="program-meta"><span>{modules.length} sections</span><span>{lessonCount} lessons</span><span>{enrolledClientIdsByCourse[course.id]?.length ?? initialEnrollmentCountByCourse[course.id] ?? 0} enrolled</span></div></div>
+            <div className="program-card-actions"><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => setEnrollmentCourse(course)}><NavIcon name="users" /> Students</button><Link aria-disabled={hasUnsavedChanges} className={`btn btn-sm${hasUnsavedChanges ? " disabled" : ""}`} href={`/courses/${course.id}/preview`} onClick={(event) => { if (hasUnsavedChanges) event.preventDefault(); }} target="_blank"><NavIcon name="eye" /> Preview</Link><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => setEditingCourse(course)}>Settings</button><button className="btn btn-sm btn-primary" disabled={hasUnsavedChanges && expanded} onClick={() => setExpandedId(expanded ? null : course.id)}>{expanded ? "Close builder" : "Open builder"}</button></div>
           </div>
           {expanded && <div className="program-builder">
             <div className="program-builder-title"><div><span className="eyebrow">Curriculum</span><h3>Program outline</h3></div><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => { setNewModuleFor(course.id); setModuleTitle(""); }}><NavIcon name="plus" /> Add section</button></div>
@@ -291,5 +297,6 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
 
     {editingCourse !== undefined && <CourseFormModal course={editingCourse} onClose={() => setEditingCourse(undefined)} onSave={saveCourse} onDelete={editingCourse ? deleteCourse : undefined} />}
     {lessonEditor && <LessonFormModal lesson={lessonEditor.lesson} onClose={() => setLessonEditor(null)} onSave={saveLesson} />}
+    {enrollmentCourse && <CourseEnrollmentModal courseId={enrollmentCourse.id} courseTitle={enrollmentCourse.title} clients={clients} initialClientIds={enrolledClientIdsByCourse[enrollmentCourse.id] ?? []} progressByClientId={Object.fromEntries(clients.map((client) => [client.id, enrollmentProgressByCourseClient[`${enrollmentCourse.id}:${client.id}`] ?? 0]))} onClose={() => setEnrollmentCourse(null)} onSaved={(clientIds) => { setEnrolledClientIdsByCourse((current) => ({ ...current, [enrollmentCourse.id]: clientIds })); setEnrollmentCourse(null); router.refresh(); }} />}
   </>;
 }

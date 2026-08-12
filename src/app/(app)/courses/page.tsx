@@ -26,17 +26,27 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
 
   const moduleIds = (modules ?? []).map((m) => m.id);
 
-  const [lessonsResult, enrollmentsResult] = await Promise.all([
+  const [lessonsResult, enrollmentsResult, membershipsResult] = await Promise.all([
     moduleIds.length > 0
       ? supabase.from("lessons").select("*").in("module_id", moduleIds).order("position", { ascending: true })
       : Promise.resolve({ data: [] as Lesson[], error: null }),
     courseIds.length > 0
-      ? supabase.from("enrollments").select("course_id").in("course_id", courseIds)
-      : Promise.resolve({ data: [] as { course_id: string }[], error: null }),
+      ? supabase.from("enrollments").select("id, course_id, client_id").in("course_id", courseIds)
+      : Promise.resolve({ data: [] as { id: string; course_id: string; client_id: string }[], error: null }),
+    supabase.from("coach_client_memberships").select("client_id").eq("coach_id", user!.id).eq("status", "active"),
   ]);
   const { data: lessons, error: lessonsError } = lessonsResult;
 
-  const queryErrors = [coursesError, modulesError, lessonsError, enrollmentsResult.error].filter(Boolean);
+  const clientIds = (membershipsResult.data ?? []).map((membership) => membership.client_id);
+  const profilesResult = clientIds.length
+    ? await supabase.from("profiles").select("id, full_name, email").in("id", clientIds).order("full_name")
+    : { data: [] as { id: string; full_name: string | null; email: string }[], error: null };
+  const enrollmentIds = (enrollmentsResult.data ?? []).map((enrollment) => enrollment.id);
+  const progressResult = enrollmentIds.length
+    ? await supabase.from("lesson_progress").select("enrollment_id, completed_at").in("enrollment_id", enrollmentIds).not("completed_at", "is", null)
+    : { data: [] as { enrollment_id: string; completed_at: string | null }[], error: null };
+
+  const queryErrors = [coursesError, modulesError, lessonsError, enrollmentsResult.error, membershipsResult.error, profilesResult.error, progressResult.error].filter(Boolean);
   if (queryErrors.length > 0) {
     await Promise.all(
       queryErrors.map((err) => logServerError(err, "courses.load", { userId: user!.id, userEmail: user!.email })),
@@ -54,8 +64,17 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
   }
 
   const enrollmentCountByCourse: Record<string, number> = {};
+  const enrolledClientIdsByCourse: Record<string, string[]> = {};
+  const enrollmentProgressByCourseClient: Record<string, number> = {};
+  const lessonCountByCourse: Record<string, number> = {};
+  for (const courseModule of (modules as CourseModule[] | null) ?? []) lessonCountByCourse[courseModule.course_id] = (lessonCountByCourse[courseModule.course_id] ?? 0) + (lessonsByModule[courseModule.id]?.length ?? 0);
+  const completedByEnrollment: Record<string, number> = {};
+  for (const row of progressResult.data ?? []) completedByEnrollment[row.enrollment_id] = (completedByEnrollment[row.enrollment_id] ?? 0) + 1;
   for (const enrollment of enrollmentsResult.data ?? []) {
     enrollmentCountByCourse[enrollment.course_id] = (enrollmentCountByCourse[enrollment.course_id] ?? 0) + 1;
+    (enrolledClientIdsByCourse[enrollment.course_id] ??= []).push(enrollment.client_id);
+    const total = lessonCountByCourse[enrollment.course_id] ?? 0;
+    enrollmentProgressByCourseClient[`${enrollment.course_id}:${enrollment.client_id}`] = total ? Math.round(((completedByEnrollment[enrollment.id] ?? 0) / total) * 100) : 0;
   }
 
   return (
@@ -74,6 +93,9 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
         initialModulesByCourse={modulesByCourse}
         initialLessonsByModule={lessonsByModule}
         enrollmentCountByCourse={enrollmentCountByCourse}
+        enrolledClientIdsByCourse={enrolledClientIdsByCourse}
+        clients={profilesResult.data ?? []}
+        enrollmentProgressByCourseClient={enrollmentProgressByCourseClient}
         coachId={user!.id}
         initialCreate={createNew === "1"}
       />

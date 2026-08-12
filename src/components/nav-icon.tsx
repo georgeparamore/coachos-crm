@@ -133,6 +133,12 @@ const PATHS: Record<string, React.ReactNode> = {
       <circle cx="12" cy="12" r="3" />
     </>
   ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <line x1="20" y1="20" x2="16.65" y2="16.65" />
+    </>
+  ),
   "check-circle": (
     <>
       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />

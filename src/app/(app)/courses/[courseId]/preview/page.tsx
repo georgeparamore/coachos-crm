@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClassroomBoard } from "@/components/classroom-board";
+import { PreviewCloseButton } from "@/components/preview-close-button";
 import { DataLoadError } from "@/components/data-load-error";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/log-server-error";
@@ -45,7 +45,7 @@ export default async function CoursePreviewPage({ params }: { params: Promise<{ 
   return <div className="page course-preview-page">
     <div className="course-preview-bar">
       <div><span className="eyebrow">Admin preview</span><strong>This is what your clients will see</strong><p>Viewing is read-only and won&apos;t change anyone&apos;s progress.</p></div>
-      <Link className="btn btn-primary" href="/courses">Back to editor</Link>
+      <PreviewCloseButton />
     </div>
     <ClassroomBoard
       courses={[course as Course]}
