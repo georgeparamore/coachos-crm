@@ -7,12 +7,13 @@ import { NavIcon } from "@/components/nav-icon";
 import { toYouTubeEmbedUrl } from "@/lib/youtube";
 import type { Course, CourseModule, Lesson } from "@/lib/courses";
 
-export function ClassroomBoard({ courses, modulesByCourse, lessonsByModule, enrollmentIdByCourse, completedLessonIds }: {
+export function ClassroomBoard({ courses, modulesByCourse, lessonsByModule, enrollmentIdByCourse, completedLessonIds, previewMode = false }: {
   courses: Course[];
   modulesByCourse: Record<string, CourseModule[]>;
   lessonsByModule: Record<string, Lesson[]>;
   enrollmentIdByCourse: Record<string, string>;
   completedLessonIds: string[];
+  previewMode?: boolean;
 }) {
   const { showError } = useErrorToast();
   const [courseId, setCourseId] = useState(courses[0]?.id ?? "");
@@ -50,14 +51,14 @@ export function ClassroomBoard({ courses, modulesByCourse, lessonsByModule, enro
   const embedUrl = activeLesson?.external_video_url ? toYouTubeEmbedUrl(activeLesson.external_video_url) : null;
   return <div className="classroom-shell">
     <aside className="classroom-sidebar">
-      <div className="classroom-course-switcher"><span className="eyebrow">My programs</span>{courses.map((course) => <button className={course.id === courseId ? "active" : ""} key={course.id} onClick={() => selectCourse(course.id)}><span>{course.title}</span><small>{(modulesByCourse[course.id] ?? []).flatMap((module) => lessonsByModule[module.id] ?? []).filter((lesson) => completed.has(lesson.id)).length}/{(modulesByCourse[course.id] ?? []).flatMap((module) => lessonsByModule[module.id] ?? []).length}</small></button>)}</div>
+      <div className="classroom-course-switcher"><span className="eyebrow">{previewMode ? "Course preview" : "My programs"}</span>{courses.map((course) => <button className={course.id === courseId ? "active" : ""} key={course.id} onClick={() => selectCourse(course.id)}><span>{course.title}</span><small>{previewMode ? `${(modulesByCourse[course.id] ?? []).flatMap((module) => lessonsByModule[module.id] ?? []).length} lessons` : `${(modulesByCourse[course.id] ?? []).flatMap((module) => lessonsByModule[module.id] ?? []).filter((lesson) => completed.has(lesson.id)).length}/${(modulesByCourse[course.id] ?? []).flatMap((module) => lessonsByModule[module.id] ?? []).length}`}</small></button>)}</div>
       <div className="classroom-outline"><div className="classroom-progress"><div><span>Progress</span><strong>{percent}%</strong></div><div className="progress-track"><span style={{ width: `${percent}%` }} /></div></div>{modules.map((module, moduleIndex) => <section key={module.id}><header><span>{String(moduleIndex + 1).padStart(2, "0")}</span><strong>{module.title}</strong></header>{(lessonsByModule[module.id] ?? []).map((lesson) => <button className={`${activeLesson?.id === lesson.id ? "active" : ""}${completed.has(lesson.id) ? " complete" : ""}`} key={lesson.id} onClick={() => setActiveLessonId(lesson.id)}><span className="classroom-check">{completed.has(lesson.id) ? "✓" : ""}</span><span>{lesson.title}</span></button>)}</section>)}</div>
     </aside>
     <main className="classroom-player">
       {activeLesson ? <>
-        <div className="classroom-player-head"><div><span className="eyebrow">{activeCourse?.title}</span><h1>{activeLesson.title}</h1></div><span>{completed.has(activeLesson.id) ? "Completed" : "In progress"}</span></div>
+        <div className="classroom-player-head"><div><span className="eyebrow">{activeCourse?.title}</span><h1>{activeLesson.title}</h1></div><span>{previewMode ? "Preview mode" : completed.has(activeLesson.id) ? "Completed" : "In progress"}</span></div>
         <div className="classroom-media">{embedUrl ? <iframe src={embedUrl} title={activeLesson.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen /> : activeLesson.external_video_url ? <a href={activeLesson.external_video_url} target="_blank" rel="noreferrer"><NavIcon name="link" /> Open lesson resource</a> : <div><NavIcon name="book-open" /><span>Reading lesson</span></div>}</div>
-        <div className="classroom-content card"><div><span className="eyebrow">Lesson notes</span><p>{activeLesson.description || "Your coach hasn’t added notes to this lesson yet."}</p></div><button className={`btn ${completed.has(activeLesson.id) ? "" : "btn-accent"}`} disabled={saving === activeLesson.id} onClick={() => toggleComplete(activeLesson.id)}>{saving === activeLesson.id ? "Saving…" : completed.has(activeLesson.id) ? "Mark incomplete" : "Complete & continue"}</button></div>
+        <div className="classroom-content card"><div><span className="eyebrow">Lesson notes</span><p>{activeLesson.description || "Your coach hasn’t added notes to this lesson yet."}</p></div>{previewMode ? <span className="classroom-preview-note">Progress is disabled in preview</span> : <button className={`btn ${completed.has(activeLesson.id) ? "" : "btn-accent"}`} disabled={saving === activeLesson.id} onClick={() => toggleComplete(activeLesson.id)}>{saving === activeLesson.id ? "Saving…" : completed.has(activeLesson.id) ? "Mark incomplete" : "Complete & continue"}</button>}</div>
       </> : <div className="card classroom-no-lesson"><NavIcon name="book-open" /><h2>This program is being prepared</h2><p>Your coach will add lessons here soon.</p></div>}
     </main>
   </div>;

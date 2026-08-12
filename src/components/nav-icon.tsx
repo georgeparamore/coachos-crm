@@ -127,6 +127,12 @@ const PATHS: Record<string, React.ReactNode> = {
     </>
   ),
   check: <polyline points="20 6 9 17 4 12" />,
+  eye: (
+    <>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
   "check-circle": (
     <>
       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />

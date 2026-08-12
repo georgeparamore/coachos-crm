@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { NavIcon } from "@/components/nav-icon";
@@ -199,7 +200,7 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
           <div className="program-card-head">
             <div className="program-index">{String(courses.indexOf(course) + 1).padStart(2, "0")}</div>
             <div className="program-card-copy"><div className="program-status"><span className={`program-status-dot ${course.status}`} />{COURSE_STATUS_LABEL[course.status]}</div><h2>{course.title}</h2><p>{course.description || "Add a short promise for this program."}</p><div className="program-meta"><span>{modules.length} sections</span><span>{lessonCount} lessons</span><span>{enrollmentCountByCourse[course.id] ?? 0} enrolled</span></div></div>
-            <div className="program-card-actions"><button className="btn btn-sm" onClick={() => setEditingCourse(course)}>Settings</button><button className="btn btn-sm btn-primary" onClick={() => setExpandedId(expanded ? null : course.id)}>{expanded ? "Close builder" : "Open builder"}</button></div>
+            <div className="program-card-actions"><Link className="btn btn-sm" href={`/courses/${course.id}/preview`} target="_blank"><NavIcon name="eye" /> Preview</Link><button className="btn btn-sm" onClick={() => setEditingCourse(course)}>Settings</button><button className="btn btn-sm btn-primary" onClick={() => setExpandedId(expanded ? null : course.id)}>{expanded ? "Close builder" : "Open builder"}</button></div>
           </div>
           {expanded && <div className="program-builder">
             <div className="program-builder-title"><div><span className="eyebrow">Curriculum</span><h3>Program outline</h3></div><button className="btn btn-sm" onClick={() => { setNewModuleFor(course.id); setModuleTitle(""); }}><NavIcon name="plus" /> Add section</button></div>
