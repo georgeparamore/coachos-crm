@@ -11,6 +11,8 @@
 // real data is flowing, since "which action_type counts as a lead" can vary
 // by campaign objective/ad type.
 
+import { createHmac } from "crypto";
+
 const REQUEST_TIMEOUT_MS = 15_000;
 
 function getMetaConfig() {
@@ -35,9 +37,22 @@ export class MetaApiError extends Error {
 }
 
 async function graphFetch<T>(path: string, params: Record<string, string>, init?: RequestInit): Promise<T> {
-  const { apiVersion } = getMetaConfig();
+  const { apiVersion, appSecret } = getMetaConfig();
   const url = new URL(`https://graph.facebook.com/${apiVersion}${path}`);
-  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  const securedParams = { ...params };
+
+  // When Meta's "Require app secret proof" security setting is enabled,
+  // every server-side Graph request authenticated with a user or system-user
+  // token must include HMAC-SHA256(access_token, app_secret). Centralizing it
+  // here protects token validation, account discovery, sync, and revoke calls
+  // without ever exposing the app secret to the browser.
+  if (securedParams.access_token && !securedParams.appsecret_proof) {
+    securedParams.appsecret_proof = createHmac("sha256", appSecret)
+      .update(securedParams.access_token)
+      .digest("hex");
+  }
+
+  for (const [key, value] of Object.entries(securedParams)) url.searchParams.set(key, value);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
