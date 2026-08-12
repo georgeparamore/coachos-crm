@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { NavIcon } from "@/components/nav-icon";
@@ -260,6 +259,10 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
     setDragItem(null); setDropTarget(null);
   }
 
+  function openPreview(courseId: string) {
+    window.open(`/courses/${courseId}/preview`, `course-preview-${courseId}`);
+  }
+
   return <>
     <section className="programs-hero">
       <div><span className="eyebrow">Curriculum studio</span><h1>Programs</h1><p>Design the path, enroll your people, and see exactly where momentum slows down.</p></div>
@@ -278,7 +281,7 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
           <div className="program-card-head">
             <div className="program-index">{String(courses.indexOf(course) + 1).padStart(2, "0")}</div>
             <div className="program-card-copy"><div className="program-status"><span className={`program-status-dot ${course.status}`} />{COURSE_STATUS_LABEL[course.status]}</div><h2>{course.title}</h2><p>{course.description || "Add a short promise for this program."}</p><div className="program-meta"><span>{modules.length} sections</span><span>{lessonCount} lessons</span><span>{enrolledClientIdsByCourse[course.id]?.length ?? initialEnrollmentCountByCourse[course.id] ?? 0} enrolled</span></div></div>
-            <div className="program-card-actions"><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => setEnrollmentCourse(course)}><NavIcon name="users" /> Students</button><Link aria-disabled={hasUnsavedChanges} className={`btn btn-sm${hasUnsavedChanges ? " disabled" : ""}`} href={`/courses/${course.id}/preview`} onClick={(event) => { if (hasUnsavedChanges) event.preventDefault(); }} target="_blank"><NavIcon name="eye" /> Preview</Link><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => setEditingCourse(course)}>Settings</button><button className="btn btn-sm btn-primary" disabled={hasUnsavedChanges && expanded} onClick={() => setExpandedId(expanded ? null : course.id)}>{expanded ? "Close builder" : "Open builder"}</button></div>
+            <div className="program-card-actions"><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => setEnrollmentCourse(course)}><NavIcon name="users" /> Students</button><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => openPreview(course.id)}><NavIcon name="eye" /> Preview</button><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => setEditingCourse(course)}>Settings</button><button className="btn btn-sm btn-primary" disabled={hasUnsavedChanges && expanded} onClick={() => setExpandedId(expanded ? null : course.id)}>{expanded ? "Close builder" : "Open builder"}</button></div>
           </div>
           {expanded && <div className="program-builder">
             <div className="program-builder-title"><div><span className="eyebrow">Curriculum</span><h3>Program outline</h3></div><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => { setNewModuleFor(course.id); setModuleTitle(""); }}><NavIcon name="plus" /> Add section</button></div>
