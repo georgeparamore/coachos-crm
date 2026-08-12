@@ -31,6 +31,9 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
   const [lessonEditor, setLessonEditor] = useState<LessonEditor | null>(null);
   const [newModuleFor, setNewModuleFor] = useState<string | null>(null);
   const [moduleTitle, setModuleTitle] = useState("");
+  const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
+  const [editingModuleTitle, setEditingModuleTitle] = useState("");
+  const [confirmDeleteModuleId, setConfirmDeleteModuleId] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -109,6 +112,38 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
     setLessonEditor(null);
     setExpandedId(courseId);
     router.refresh();
+  }
+
+  async function renameModule(courseId: string, moduleId: string) {
+    const title = editingModuleTitle.trim();
+    if (!title) return;
+    setWorking(moduleId);
+    try {
+      const { data, error } = await createClient().from("course_modules").update({ title }).eq("id", moduleId).select().single();
+      if (error) throw error;
+      setModulesByCourse((current) => ({ ...current, [courseId]: (current[courseId] ?? []).map((row) => row.id === moduleId ? data as CourseModule : row) }));
+      savedModulesRef.current[courseId] = (savedModulesRef.current[courseId] ?? []).map((row) => row.id === moduleId ? data as CourseModule : row);
+      setEditingModuleId(null);
+    } catch (error) { showError(error, "courses.module-rename"); } finally { setWorking(null); }
+  }
+
+  async function deleteModule(courseId: string, moduleId: string) {
+    setWorking(moduleId);
+    try {
+      const { error } = await createClient().from("course_modules").delete().eq("id", moduleId);
+      if (error) throw error;
+      const remaining = (modulesByCourse[courseId] ?? []).filter((row) => row.id !== moduleId).map((row, position) => ({ ...row, position }));
+      setModulesByCourse((current) => ({ ...current, [courseId]: remaining }));
+      setLessonsByModule((current) => { const next = { ...current }; delete next[moduleId]; return next; });
+      savedModulesRef.current[courseId] = structuredClone(remaining);
+      delete savedLessonsRef.current[moduleId];
+      setConfirmDeleteModuleId(null);
+      const supabase = createClient();
+      const results = await Promise.all(remaining.map((row) => supabase.from("course_modules").update({ position: row.position }).eq("id", row.id)));
+      const failed = results.find((result) => result.error);
+      if (failed?.error) throw failed.error;
+      router.refresh();
+    } catch (error) { showError(error, "courses.module-delete"); } finally { setWorking(null); }
   }
 
   async function deleteLesson(moduleId: string, lessonId: string) {
@@ -245,7 +280,8 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
             {newModuleFor === course.id && <div className="program-inline-form"><input autoFocus className="form-input" placeholder="Section title, e.g. Foundations" value={moduleTitle} onChange={(event) => setModuleTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addModule(course.id); }} /><button className="btn btn-primary btn-sm" disabled={!moduleTitle.trim() || working !== null} onClick={() => addModule(course.id)}>Add</button><button className="btn btn-sm" onClick={() => setNewModuleFor(null)}>Cancel</button></div>}
             {modules.length === 0 && <div className="program-section-empty"><p>Add a section to begin organizing the client journey.</p></div>}
             {modules.map((module, moduleIndex) => { const lessons = lessonsByModule[module.id] ?? []; return <section className={`program-section${dropTarget === `module-${module.id}` ? " drag-over" : ""}${dragItem?.type === "module" && dragItem.moduleId === module.id ? " dragging" : ""}`} key={module.id} onDragOver={(event) => { if (dragItem?.type === "module") { event.preventDefault(); setDropTarget(`module-${module.id}`); } }} onDrop={() => dropModule(course.id, module.id)}>
-              <header draggable onDragStart={(event) => { event.stopPropagation(); setDragItem({ type: "module", courseId: course.id, moduleId: module.id }); event.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { setDragItem(null); setDropTarget(null); }}><span className="program-drag-handle" title="Drag section">⠿</span><span>{String(moduleIndex + 1).padStart(2, "0")}</span><div><h3>{module.title}</h3><p>{lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}</p></div><div className="program-section-actions"><button aria-label="Move section up" disabled={moduleIndex === 0} onClick={() => moveModule(course.id, moduleIndex, -1)}>↑</button><button aria-label="Move section down" disabled={moduleIndex === modules.length - 1} onClick={() => moveModule(course.id, moduleIndex, 1)}>↓</button><button className="btn btn-sm" disabled={hasUnsavedChanges} onClick={() => setLessonEditor({ courseId: course.id, moduleId: module.id, lesson: null })}><NavIcon name="plus" /> Lesson</button></div></header>
+              <header draggable={editingModuleId !== module.id} onDragStart={(event) => { if (editingModuleId === module.id) { event.preventDefault(); return; } event.stopPropagation(); setDragItem({ type: "module", courseId: course.id, moduleId: module.id }); event.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { setDragItem(null); setDropTarget(null); }}><span className="program-drag-handle" title="Drag section">⠿</span><span>{String(moduleIndex + 1).padStart(2, "0")}</span><div>{editingModuleId === module.id ? <div className="program-module-edit"><input autoFocus className="form-input" value={editingModuleTitle} onChange={(event) => setEditingModuleTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") renameModule(course.id, module.id); if (event.key === "Escape") setEditingModuleId(null); }} /><button className="btn btn-primary btn-sm" disabled={!editingModuleTitle.trim() || working === module.id} onClick={() => renameModule(course.id, module.id)}>Save</button><button className="btn btn-sm" onClick={() => setEditingModuleId(null)}>Cancel</button></div> : <><h3>{module.title}</h3><p>{lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}</p></>}</div><div className="program-section-actions"><button aria-label="Move section up" disabled={moduleIndex === 0 || editingModuleId === module.id} onClick={() => moveModule(course.id, moduleIndex, -1)}>↑</button><button aria-label="Move section down" disabled={moduleIndex === modules.length - 1 || editingModuleId === module.id} onClick={() => moveModule(course.id, moduleIndex, 1)}>↓</button><button disabled={hasUnsavedChanges || editingModuleId === module.id} onClick={() => { setEditingModuleId(module.id); setEditingModuleTitle(module.title); setConfirmDeleteModuleId(null); }}>Rename</button><button disabled={hasUnsavedChanges || editingModuleId === module.id} onClick={() => { setConfirmDeleteModuleId(module.id); setEditingModuleId(null); }}>Delete</button><button className="btn btn-sm" disabled={hasUnsavedChanges || editingModuleId === module.id} onClick={() => setLessonEditor({ courseId: course.id, moduleId: module.id, lesson: null })}><NavIcon name="plus" /> Lesson</button></div></header>
+              {confirmDeleteModuleId === module.id && <div className="program-module-delete"><div><strong>Delete “{module.title}”?</strong><span>This permanently removes {lessons.length} {lessons.length === 1 ? "lesson" : "lessons"} and their client progress.</span></div><div><button className="btn btn-sm" onClick={() => setConfirmDeleteModuleId(null)}>Keep section</button><button className="btn btn-danger btn-sm" disabled={working === module.id} onClick={() => deleteModule(course.id, module.id)}>{working === module.id ? "Deleting…" : "Delete section"}</button></div></div>}
               <div className={`program-lessons${dropTarget === `lesson-end-${module.id}` ? " drag-over" : ""}`} onDragOver={(event) => { if (dragItem?.type === "lesson") { event.preventDefault(); setDropTarget(`lesson-end-${module.id}`); } }} onDrop={(event) => { event.stopPropagation(); dropLesson(module.id, lessons.length); }}>{lessons.map((lesson, index) => <div className={`program-lesson${dropTarget === `lesson-${lesson.id}` ? " drag-over" : ""}${dragItem?.type === "lesson" && dragItem.lessonId === lesson.id ? " dragging" : ""}`} draggable key={lesson.id} onDragStart={(event) => { event.stopPropagation(); setDragItem({ type: "lesson", moduleId: module.id, lessonId: lesson.id }); event.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { setDragItem(null); setDropTarget(null); }} onDragOver={(event) => { if (dragItem?.type === "lesson") { event.preventDefault(); event.stopPropagation(); setDropTarget(`lesson-${lesson.id}`); } }} onDrop={(event) => { event.stopPropagation(); dropLesson(module.id, index); }}><div className="program-drag-handle" title="Drag lesson">⠿</div><div className="program-lesson-number">{index + 1}</div><div className="program-lesson-icon"><NavIcon name={lesson.external_video_url ? "video" : "file-text"} /></div><div><strong>{lesson.title}</strong><span>{lesson.external_video_url ? "Video lesson" : "Reading / assignment"}{lesson.description ? ` · ${lesson.description}` : ""}</span></div><div className="program-lesson-actions"><button aria-label="Move lesson up" disabled={index === 0} onClick={() => moveLesson(module.id, index, -1)}>↑</button><button aria-label="Move lesson down" disabled={index === lessons.length - 1} onClick={() => moveLesson(module.id, index, 1)}>↓</button><button disabled={hasUnsavedChanges} onClick={() => setLessonEditor({ courseId: course.id, moduleId: module.id, lesson })}>Edit</button><button disabled={hasUnsavedChanges || working === lesson.id} onClick={() => deleteLesson(module.id, lesson.id)}>Remove</button></div></div>)}</div>
             </section>; })}
           </div>}
