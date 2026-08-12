@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useErrorToast } from "@/components/error-toast-provider";
 
-export function MetaTokenConnectForm() {
+export function MetaTokenConnectForm({ metaAppId }: { metaAppId: string | null }) {
   const router = useRouter();
   const { showError } = useErrorToast();
   const [expanded, setExpanded] = useState(false);
@@ -51,8 +51,10 @@ export function MetaTokenConnectForm() {
     <form onSubmit={handleSubmit} style={{ marginTop: 8 }}>
       <p className="sub" style={{ marginBottom: 8 }}>
         For when the account owner generates their own token instead of going through the Connect button — in{" "}
-        <strong>Business Settings → System Users</strong>, create a system user, assign it the ad account with{" "}
-        <strong>ads_read</strong> access, then Generate Token and paste it here.
+        <strong>Business Settings → System Users</strong>, create a system user, assign it the ad account, then choose{" "}
+        <strong>{metaAppId ? `DJS CRM app (${metaAppId})` : "the same Meta app connected to DJS CRM"}</strong> when you
+        click Generate Token. Enable <strong>ads_read</strong> and <strong>business_management</strong>, then paste that token here.
+        Tokens created for Graph API Explorer or another app will not work.
       </p>
       <div style={{ display: "flex", gap: 8 }}>
         <input

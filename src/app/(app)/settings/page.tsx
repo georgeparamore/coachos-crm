@@ -100,7 +100,11 @@ export default async function SettingsPage({
         <div>
           <div className="card">
             <div className="card-title">Integrations</div>
-            <MetaConnectionRow connected={Boolean(metaConnection)} adAccountName={metaAdAccountName} />
+            <MetaConnectionRow
+              connected={Boolean(metaConnection)}
+              adAccountName={metaAdAccountName}
+              metaAppId={process.env.META_APP_ID ?? null}
+            />
             {integrations.map((integration) => (
               <div className="list-row" key={integration.name}>
                 <div className="list-row-left">

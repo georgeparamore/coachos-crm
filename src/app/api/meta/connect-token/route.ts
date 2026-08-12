@@ -101,6 +101,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, accountsFound });
   } catch (err) {
     const message = err instanceof MetaApiError ? err.message : err instanceof Error ? err.message : "Unknown error";
+    if (err instanceof MetaApiError && /bad signature/i.test(message)) {
+      const appId = process.env.META_APP_ID;
+      return NextResponse.json(
+        {
+          error: `That token was generated for a different Meta app. Generate a new System User token and select ${appId ? `the DJS CRM app (App ID ${appId})` : "the same Meta app configured in DJS CRM"}.`,
+        },
+        { status: 400 },
+      );
+    }
     return NextResponse.json({ error: `Meta rejected that token: ${message}` }, { status: 400 });
   }
 }

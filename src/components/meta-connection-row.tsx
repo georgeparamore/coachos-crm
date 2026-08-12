@@ -8,9 +8,11 @@ import { MetaTokenConnectForm } from "@/components/meta-token-connect-form";
 export function MetaConnectionRow({
   connected,
   adAccountName,
+  metaAppId,
 }: {
   connected: boolean;
   adAccountName: string | null;
+  metaAppId: string | null;
 }) {
   const router = useRouter();
   const { showError } = useErrorToast();
@@ -56,7 +58,7 @@ export function MetaConnectionRow({
           </a>
         )}
       </div>
-      {!connected && <MetaTokenConnectForm />}
+      {!connected && <MetaTokenConnectForm metaAppId={metaAppId} />}
     </div>
   );
 }
