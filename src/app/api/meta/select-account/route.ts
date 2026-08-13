@@ -5,9 +5,10 @@ import { logServerError } from "@/lib/log-server-error";
 
 export const runtime = "nodejs";
 
-/** Sets which of the coach's Meta ad accounts is the selected one the sync
- * job pulls from. Only one account can be selected per connection — this
- * clears is_selected on the others first. */
+/** Toggles whether one of the coach's Meta ad accounts is included in
+ * syncing, and/or updates its label. More than one account can be selected
+ * at once per connection (e.g. separate businesses under the same Meta
+ * login) — this only ever touches the target row, never clears others. */
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -20,17 +21,22 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const adAccountId = body?.adAccountId;
+  const selected = typeof body?.selected === "boolean" ? body.selected : undefined;
+  const label = typeof body?.label === "string" ? body.label.trim() : undefined;
+
   if (typeof adAccountId !== "string") {
     return NextResponse.json({ error: "adAccountId is required" }, { status: 400 });
+  }
+  if (selected === undefined && label === undefined) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
   const service = createServiceClient();
 
-  // Ownership check: the target row must belong to this coach, and we need
-  // its connection_id to scope the "clear the others" update.
+  // Ownership check: the target row must belong to this coach.
   const { data: target } = await service
     .from("meta_ad_accounts")
-    .select("id, connection_id")
+    .select("id")
     .eq("id", adAccountId)
     .eq("coach_id", user.id)
     .maybeSingle();
@@ -39,19 +45,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ad account not found" }, { status: 404 });
   }
 
-  const { error: clearError } = await service
-    .from("meta_ad_accounts")
-    .update({ is_selected: false })
-    .eq("connection_id", target.connection_id);
-  if (clearError) {
-    await logServerError(clearError, "meta.select_account.clear", { userId: user.id, userEmail: user.email });
-    return NextResponse.json({ error: "Failed to update selection" }, { status: 500 });
-  }
+  const update: Record<string, unknown> = {};
+  if (selected !== undefined) update.is_selected = selected;
+  if (label !== undefined) update.label = label || null;
 
-  const { error: selectError } = await service.from("meta_ad_accounts").update({ is_selected: true }).eq("id", target.id);
-  if (selectError) {
-    await logServerError(selectError, "meta.select_account.select", { userId: user.id, userEmail: user.email });
-    return NextResponse.json({ error: "Failed to update selection" }, { status: 500 });
+  const { error } = await service.from("meta_ad_accounts").update(update).eq("id", target.id);
+  if (error) {
+    await logServerError(error, "meta.select_account.update", { userId: user.id, userEmail: user.email });
+    return NextResponse.json({ error: "Failed to update ad account" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

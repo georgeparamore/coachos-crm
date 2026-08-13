@@ -44,9 +44,17 @@ export default async function AdsPage() {
 
   // meta_ad_accounts / meta_campaigns / meta_ad_insights_daily are all
   // coach-readable directly (coach_id = auth.uid()) — no service client needed.
-  const [accountRes, campaignsRes, insightsRes] = await Promise.all([
-    supabase.from("meta_ad_accounts").select("name, currency").eq("connection_id", connection.id).eq("is_selected", true).maybeSingle(),
-    supabase.from("meta_campaigns").select("id, meta_campaign_id, name, meta_status, objective").eq("connection_id", connection.id),
+  const [accountsRes, campaignsRes, insightsRes] = await Promise.all([
+    supabase
+      .from("meta_ad_accounts")
+      .select("id, name, currency, label")
+      .eq("connection_id", connection.id)
+      .eq("is_selected", true)
+      .order("name"),
+    supabase
+      .from("meta_campaigns")
+      .select("id, meta_campaign_id, name, meta_status, objective, ad_account_id")
+      .eq("connection_id", connection.id),
     supabase
       .from("meta_ad_insights_daily")
       .select("campaign_id, date, spend_cents, impressions, clicks, leads")
@@ -54,17 +62,18 @@ export default async function AdsPage() {
       .order("date", { ascending: false }),
   ]);
 
-  const { data: account } = accountRes;
+  const { data: accounts } = accountsRes;
   const { data: campaigns } = campaignsRes;
   const { data: insights } = insightsRes;
 
-  const queryErrors = [accountRes.error, campaignsRes.error, insightsRes.error].filter(Boolean);
+  const queryErrors = [accountsRes.error, campaignsRes.error, insightsRes.error].filter(Boolean);
   if (queryErrors.length > 0) {
     await Promise.all(
       queryErrors.map((err) => logServerError(err, "ads.load", { userId: user!.id, userEmail: user!.email })),
     );
   }
 
+  const allAccounts = accounts ?? [];
   const allCampaigns = campaigns ?? [];
   const allInsights = insights ?? [];
 
@@ -74,13 +83,48 @@ export default async function AdsPage() {
   const totalImpressions = allInsights.reduce((sum, i) => sum + i.impressions, 0);
   const costPerLead = totalLeads > 0 ? formatCurrencyWhole(totalSpendCents / totalLeads) : "—";
 
-  const spendByCampaign = new Map<string, { spendCents: number; leads: number; clicks: number }>();
+  const totalsByCampaign = new Map<string, { spendCents: number; leads: number; clicks: number }>();
   for (const row of allInsights) {
-    const existing = spendByCampaign.get(row.campaign_id) ?? { spendCents: 0, leads: 0, clicks: 0 };
+    const existing = totalsByCampaign.get(row.campaign_id) ?? { spendCents: 0, leads: 0, clicks: 0 };
     existing.spendCents += row.spend_cents;
     existing.leads += row.leads;
     existing.clicks += row.clicks;
-    spendByCampaign.set(row.campaign_id, existing);
+    totalsByCampaign.set(row.campaign_id, existing);
+  }
+
+  const campaignsByAccount = new Map<string, typeof allCampaigns>();
+  const unassignedCampaigns: typeof allCampaigns = [];
+  for (const c of allCampaigns) {
+    if (!c.ad_account_id) {
+      unassignedCampaigns.push(c);
+      continue;
+    }
+    const list = campaignsByAccount.get(c.ad_account_id) ?? [];
+    list.push(c);
+    campaignsByAccount.set(c.ad_account_id, list);
+  }
+
+  function renderCampaignList(list: typeof allCampaigns) {
+    return list.map((c) => {
+      const totals = totalsByCampaign.get(c.id) ?? { spendCents: 0, leads: 0, clicks: 0 };
+      return (
+        <div className="list-row" key={c.id}>
+          <div>
+            <div className="name">{c.name}</div>
+            <div className="sub">
+              {c.meta_status ?? "Unknown status"}
+              {c.objective ? ` · ${c.objective}` : ""}
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div className="name">{formatCurrencyWhole(totals.spendCents)}</div>
+            <div className="sub">
+              {totals.leads} leads · {totals.clicks} clicks
+            </div>
+          </div>
+        </div>
+      );
+    });
   }
 
   return (
@@ -90,7 +134,7 @@ export default async function AdsPage() {
           <div className="page-title">Ad performance</div>
           <div className="page-sub">
             Campaign spend and leads from Meta (Facebook/Instagram) Ads
-            {account ? ` · ${account.name}` : ""}
+            {allAccounts.length > 0 ? ` · ${allAccounts.map((a) => a.label || a.name).join(", ")}` : ""}
           </div>
         </div>
         <MetaSyncButton />
@@ -99,15 +143,15 @@ export default async function AdsPage() {
       {queryErrors.length > 0 && <DataLoadError what="your ad performance data" />}
 
       <div className="metrics">
-        <StatTile label="Total spend" value={formatCurrencyWhole(totalSpendCents)} sub="All synced campaigns" />
+        <StatTile label="Total spend" value={formatCurrencyWhole(totalSpendCents)} sub="All synced accounts" />
         <StatTile label="Leads" value={String(totalLeads)} sub="Reported by Meta" />
         <StatTile label="Cost per lead" value={costPerLead} sub="Spend ÷ leads" />
         <StatTile label="Clicks" value={String(totalClicks)} sub={`${totalImpressions.toLocaleString()} impressions`} />
       </div>
 
-      <div className="card">
-        <div className="card-title">Campaigns</div>
-        {allCampaigns.length === 0 ? (
+      {allCampaigns.length === 0 ? (
+        <div className="card">
+          <div className="card-title">Campaigns</div>
           <div className="empty-state">
             <p>
               Connected, but no campaign data has synced yet. Click <strong>Sync now</strong> above, or wait for
@@ -115,30 +159,40 @@ export default async function AdsPage() {
               after that.
             </p>
           </div>
-        ) : (
-          allCampaigns.map((c) => {
-            const totals = spendByCampaign.get(c.id) ?? { spendCents: 0, leads: 0, clicks: 0 };
+        </div>
+      ) : allAccounts.length <= 1 ? (
+        <div className="card">
+          <div className="card-title">Campaigns</div>
+          {renderCampaignList(allCampaigns)}
+        </div>
+      ) : (
+        <>
+          {allAccounts.map((account) => {
+            const list = campaignsByAccount.get(account.id) ?? [];
             return (
-              <div className="list-row" key={c.id}>
-                <div>
-                  <div className="name">{c.name}</div>
-                  <div className="sub">
-                    {c.meta_status ?? "Unknown status"}
-                    {c.objective ? ` · ${c.objective}` : ""}
+              <div className="card" key={account.id}>
+                <div className="card-title">{account.label || account.name}</div>
+                {list.length === 0 ? (
+                  <div className="empty-state">
+                    <p>No campaigns synced for this account yet.</p>
                   </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div className="name">{formatCurrencyWhole(totals.spendCents)}</div>
-                  <div className="sub">
-                    {totals.leads} leads · {totals.clicks} clicks
-                  </div>
-                </div>
+                ) : (
+                  renderCampaignList(list)
+                )}
               </div>
             );
-          })
-        )}
-      </div>
-
+          })}
+          {unassignedCampaigns.length > 0 && (
+            <div className="card">
+              <div className="card-title">Other</div>
+              <p className="sub" style={{ marginBottom: 12 }}>
+                Synced before account grouping was added — a future sync will assign these.
+              </p>
+              {renderCampaignList(unassignedCampaigns)}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

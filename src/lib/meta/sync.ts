@@ -18,19 +18,20 @@ function isoDateDaysAgo(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Syncs campaigns + last 30 days of daily insights for one coach's
- * selected ad account. Idempotent — safe to re-run (upserts on the same
- * unique keys the schema defines). Records a meta_sync_runs row either way
- * so /settings and /ads can show sync history/staleness. */
+/** Syncs campaigns + last 30 days of daily insights for every ad account
+ * the coach has selected on this connection — more than one is supported
+ * (e.g. separate businesses under the same Meta login), each tagged with
+ * its ad_account_id so the Ad performance page can group by account.
+ * Idempotent — safe to re-run (upserts on the same unique keys the schema
+ * defines). Records a single meta_sync_runs row covering all accounts. */
 export async function syncConnection(service: ServiceClient, connection: Connection) {
-  const { data: adAccount } = await service
+  const { data: adAccounts } = await service
     .from("meta_ad_accounts")
-    .select("meta_ad_account_id")
+    .select("id, meta_ad_account_id")
     .eq("connection_id", connection.id)
-    .eq("is_selected", true)
-    .maybeSingle();
+    .eq("is_selected", true);
 
-  if (!adAccount || !connection.access_token_encrypted) {
+  if (!adAccounts || adAccounts.length === 0 || !connection.access_token_encrypted) {
     return { skipped: true as const };
   }
 
@@ -40,57 +41,66 @@ export async function syncConnection(service: ServiceClient, connection: Connect
     .select("id")
     .single();
 
+  let campaignsSynced = 0;
+  let insightsSynced = 0;
+
   try {
     const accessToken = decryptToken(connection.access_token_encrypted);
 
-    const campaigns = await fetchCampaigns(accessToken, adAccount.meta_ad_account_id);
-    let campaignIdByMetaId = new Map<string, string>();
+    for (const adAccount of adAccounts) {
+      const campaigns = await fetchCampaigns(accessToken, adAccount.meta_ad_account_id);
+      let campaignIdByMetaId = new Map<string, string>();
 
-    if (campaigns.length > 0) {
-      const { data: upserted, error: campaignsError } = await service
-        .from("meta_campaigns")
-        .upsert(
-          campaigns.map((c) => ({
+      if (campaigns.length > 0) {
+        const { data: upserted, error: campaignsError } = await service
+          .from("meta_campaigns")
+          .upsert(
+            campaigns.map((c) => ({
+              coach_id: connection.coach_id,
+              connection_id: connection.id,
+              ad_account_id: adAccount.id,
+              meta_campaign_id: c.id,
+              name: c.name,
+              meta_status: c.status,
+              objective: c.objective ?? null,
+            })),
+            { onConflict: "connection_id,meta_campaign_id" },
+          )
+          .select("id, meta_campaign_id");
+        if (campaignsError) throw campaignsError;
+        campaignIdByMetaId = new Map((upserted ?? []).map((c) => [c.meta_campaign_id, c.id]));
+      }
+
+      const since = isoDateDaysAgo(INSIGHTS_LOOKBACK_DAYS);
+      const until = isoDateDaysAgo(0);
+      const insights = await fetchDailyInsights(accessToken, adAccount.meta_ad_account_id, since, until);
+
+      const insightRows = insights
+        .map((row) => {
+          const campaignId = campaignIdByMetaId.get(row.campaignId);
+          if (!campaignId) return null;
+          return {
             coach_id: connection.coach_id,
-            connection_id: connection.id,
-            meta_campaign_id: c.id,
-            name: c.name,
-            meta_status: c.status,
-            objective: c.objective ?? null,
-          })),
-          { onConflict: "connection_id,meta_campaign_id" },
-        )
-        .select("id, meta_campaign_id");
-      if (campaignsError) throw campaignsError;
-      campaignIdByMetaId = new Map((upserted ?? []).map((c) => [c.meta_campaign_id, c.id]));
-    }
+            campaign_id: campaignId,
+            date: row.date,
+            spend_cents: row.spendCents,
+            impressions: row.impressions,
+            clicks: row.clicks,
+            leads: row.leads,
+            currency: row.currency,
+          };
+        })
+        .filter((row): row is NonNullable<typeof row> => row !== null);
 
-    const since = isoDateDaysAgo(INSIGHTS_LOOKBACK_DAYS);
-    const until = isoDateDaysAgo(0);
-    const insights = await fetchDailyInsights(accessToken, adAccount.meta_ad_account_id, since, until);
+      if (insightRows.length > 0) {
+        const { error: insightsError } = await service
+          .from("meta_ad_insights_daily")
+          .upsert(insightRows, { onConflict: "campaign_id,date" });
+        if (insightsError) throw insightsError;
+      }
 
-    const insightRows = insights
-      .map((row) => {
-        const campaignId = campaignIdByMetaId.get(row.campaignId);
-        if (!campaignId) return null;
-        return {
-          coach_id: connection.coach_id,
-          campaign_id: campaignId,
-          date: row.date,
-          spend_cents: row.spendCents,
-          impressions: row.impressions,
-          clicks: row.clicks,
-          leads: row.leads,
-          currency: row.currency,
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => row !== null);
-
-    if (insightRows.length > 0) {
-      const { error: insightsError } = await service
-        .from("meta_ad_insights_daily")
-        .upsert(insightRows, { onConflict: "campaign_id,date" });
-      if (insightsError) throw insightsError;
+      campaignsSynced += campaigns.length;
+      insightsSynced += insightRows.length;
     }
 
     await service
@@ -104,13 +114,13 @@ export async function syncConnection(service: ServiceClient, connection: Connect
         .update({
           status: "success",
           finished_at: new Date().toISOString(),
-          campaigns_synced: campaigns.length,
-          insights_synced: insightRows.length,
+          campaigns_synced: campaignsSynced,
+          insights_synced: insightsSynced,
         })
         .eq("id", run.id);
     }
 
-    return { skipped: false as const, campaignsSynced: campaigns.length, insightsSynced: insightRows.length };
+    return { skipped: false as const, campaignsSynced, insightsSynced };
   } catch (err) {
     const message = err instanceof MetaApiError ? err.message : err instanceof Error ? err.message : "Unknown sync error";
 
