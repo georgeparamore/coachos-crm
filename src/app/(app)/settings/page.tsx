@@ -4,6 +4,7 @@ import { BusinessProfileForm } from "@/components/business-profile-form";
 import { DataLoadError } from "@/components/data-load-error";
 import { MetaConnectionRow } from "@/components/meta-connection-row";
 import { MetaAdAccountPicker } from "@/components/meta-ad-account-picker";
+import { MetaLeadIntakeCard } from "@/components/meta-lead-intake-card";
 import { logServerError } from "@/lib/log-server-error";
 
 const META_ERROR_MESSAGES: Record<string, string> = {
@@ -46,6 +47,7 @@ export default async function SettingsPage({
 
   let metaAdAccountName: string | null = null;
   let metaAdAccounts: { id: string; name: string; currency: string; is_selected: boolean; meta_ad_account_id: string }[] = [];
+  let metaLeadSources: { id: string; meta_page_id: string; page_name: string | null; meta_form_id: string | null; form_name: string | null; last_received_at: string | null }[] = [];
   if (metaConnection) {
     const { data: accounts } = await service
       .from("meta_ad_accounts")
@@ -54,6 +56,8 @@ export default async function SettingsPage({
       .order("name");
     metaAdAccounts = accounts ?? [];
     metaAdAccountName = metaAdAccounts.find((a) => a.is_selected)?.name ?? null;
+    const { data: leadSources } = await service.from("meta_lead_sources").select("id, meta_page_id, page_name, meta_form_id, form_name, last_received_at").eq("coach_id", user!.id).eq("enabled", true).order("created_at");
+    metaLeadSources = leadSources ?? [];
   }
 
   const integrations = [
@@ -121,6 +125,7 @@ export default async function SettingsPage({
           </div>
 
           {metaConnection && <MetaAdAccountPicker accounts={metaAdAccounts} />}
+          {metaConnection && <MetaLeadIntakeCard sources={metaLeadSources} webhookReady={Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN && process.env.META_APP_SECRET)} verifyToken={process.env.META_WEBHOOK_VERIFY_TOKEN ?? null} />}
 
           <div className="card">
             <div className="card-title">Platform status</div>

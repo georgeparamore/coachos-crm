@@ -19,6 +19,9 @@ export type Lead = {
   fit_score: number | null;
   notes: string | null;
   follow_up_at: string | null;
+  external_source?: string | null;
+  external_id?: string | null;
+  source_details?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };

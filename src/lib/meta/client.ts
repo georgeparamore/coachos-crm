@@ -105,7 +105,7 @@ export function buildAuthorizeUrl(redirectUri: string, state: string): string {
   // only reachable via a Business Manager the user belongs to as a
   // partner/employee rather than a personal admin — confirmed necessary in
   // testing (account discovery came back empty with ads_read alone).
-  url.searchParams.set("scope", "ads_read,business_management");
+  url.searchParams.set("scope", "ads_read,business_management,leads_retrieval,pages_show_list,pages_manage_metadata");
   return url.toString();
 }
 
@@ -152,6 +152,26 @@ export async function revokeToken(accessToken: string): Promise<void> {
 export async function fetchMetaUserId(accessToken: string): Promise<string> {
   const data = await graphFetch<{ id: string }>("/me", { fields: "id", access_token: accessToken });
   return data.id;
+}
+
+export type MetaLead = {
+  id: string;
+  created_time?: string;
+  ad_id?: string;
+  ad_name?: string;
+  adset_id?: string;
+  adset_name?: string;
+  campaign_id?: string;
+  campaign_name?: string;
+  form_id?: string;
+  field_data?: { name: string; values?: string[] }[];
+};
+
+export async function fetchLead(accessToken: string, leadId: string): Promise<MetaLead> {
+  return graphFetch<MetaLead>(`/${leadId}`, {
+    fields: "id,created_time,ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,form_id,field_data",
+    access_token: accessToken,
+  });
 }
 
 export type MetaAdAccount = {
