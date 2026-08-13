@@ -19,6 +19,9 @@ export function ContextNav({ isClient, notifications = [] }: { isClient: boolean
         {section.items.map((item) => {
           const baseHref = item.href.split("#")[0];
           const active = pathname === baseHref && !item.href.includes("#");
+          if (item.href.includes("#")) {
+            return <a href={item.href} key={item.href}>{item.label}</a>;
+          }
           return <Link className={active ? "active" : ""} href={item.href} key={item.href}>{item.label}</Link>;
         })}
       </div>
