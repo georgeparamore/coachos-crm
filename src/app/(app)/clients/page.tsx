@@ -5,6 +5,7 @@ import { EnrollClientButton } from "@/components/enroll-client-button";
 import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
 import Link from "next/link";
+import type { Business } from "@/lib/businesses";
 
 export default async function ClientsPage() {
   const supabase = await createClient();
@@ -12,7 +13,7 @@ export default async function ClientsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [membershipsRes, invitesRes, coursesRes] = await Promise.all([
+  const [membershipsRes, invitesRes, coursesRes, businessesRes] = await Promise.all([
     supabase
       .from("coach_client_memberships")
       .select("id, status, invited_at, accepted_at, client_id")
@@ -20,16 +21,19 @@ export default async function ClientsPage() {
       .order("invited_at", { ascending: false }),
     supabase
       .from("client_invites")
-      .select("id, email, full_name, status, invited_at")
+      .select("id, email, full_name, status, invited_at, business_id")
       .eq("coach_id", user!.id)
       .eq("status", "pending")
       .order("invited_at", { ascending: false }),
     supabase.from("courses").select("id, title").eq("coach_id", user!.id).order("title"),
+    supabase.from("businesses").select("*").eq("coach_id", user!.id).eq("is_active", true).order("is_default", { ascending: false }).order("name"),
   ]);
 
   const { data: memberships } = membershipsRes;
   const { data: invites } = invitesRes;
   const { data: courses } = coursesRes;
+  const businesses = (businessesRes.data as Business[]) ?? [];
+  const businessById = new Map(businesses.map((business) => [business.id, business]));
 
   const clientIds = (memberships ?? []).map((m) => m.client_id);
   const [profilesRes, enrollmentsRes] = await Promise.all([
@@ -44,7 +48,7 @@ export default async function ClientsPage() {
   const { data: clientProfiles, error: profilesError } = profilesRes;
   const { data: enrollments, error: enrollmentsError } = enrollmentsRes;
 
-  const queryErrors = [membershipsRes.error, invitesRes.error, coursesRes.error, profilesError, enrollmentsError].filter(Boolean);
+  const queryErrors = [membershipsRes.error, invitesRes.error, coursesRes.error, businessesRes.error, profilesError, enrollmentsError].filter(Boolean);
   if (queryErrors.length > 0) {
     await Promise.all(queryErrors.map((err) => logServerError(err, "clients.load", { userId: user!.id, userEmail: user!.email })));
   }
@@ -75,7 +79,7 @@ export default async function ClientsPage() {
 
       <div className="card" id="invite">
         <div className="card-title">Invite a client</div>
-        <InviteClientForm />
+        <InviteClientForm businesses={businesses} />
       </div>
 
       {pendingInvites.length > 0 && (
@@ -86,7 +90,7 @@ export default async function ClientsPage() {
               <div>
                 <div className="name">{invite.full_name || invite.email}</div>
                 <div className="sub">
-                  {invite.email} · invited {new Date(invite.invited_at).toLocaleDateString()}
+                  {invite.email} · {businessById.get(invite.business_id)?.name ?? "Business"} · invited {new Date(invite.invited_at).toLocaleDateString()}
                 </div>
               </div>
               <RevokeInviteButton inviteId={invite.id} />

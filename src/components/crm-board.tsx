@@ -6,14 +6,17 @@ import { createClient } from "@/lib/supabase/client";
 import { LEAD_STAGES, type Lead, type LeadInput } from "@/lib/leads";
 import { LeadFormModal } from "@/components/lead-form-modal";
 import { useErrorToast } from "@/components/error-toast-provider";
+import type { Business } from "@/lib/businesses";
 
 export function CrmBoard({
   initialLeads,
+  businesses,
   coachId,
   initialLeadId,
   initialCreate,
 }: {
   initialLeads: Lead[];
+  businesses: Business[];
   coachId: string;
   initialLeadId?: string;
   initialCreate?: boolean;
@@ -25,6 +28,9 @@ export function CrmBoard({
     initialCreate ? null : initialLeadId ? initialLeads.find((l) => l.id === initialLeadId) : undefined,
   );
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
+  const [businessFilter, setBusinessFilter] = useState("all");
+  const businessById = new Map(businesses.map((business) => [business.id, business]));
+  const visibleLeads = businessFilter === "all" ? leads : leads.filter((lead) => lead.business_id === businessFilter);
 
   useEffect(() => {
     if (initialLeadId || initialCreate) router.replace("/crm");
@@ -90,7 +96,7 @@ export function CrmBoard({
     const response = await fetch("/api/invites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: editingLead.email, fullName: editingLead.name }),
+      body: JSON.stringify({ email: editingLead.email, fullName: editingLead.name, businessId: editingLead.business_id }),
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok && response.status !== 409) throw new Error(body.error || "Failed to create client invitation");
@@ -99,7 +105,7 @@ export function CrmBoard({
     router.push("/clients");
   }
 
-  const openPipelineValue = leads
+  const openPipelineValue = visibleLeads
     .filter((lead) => lead.stage !== "signed")
     .reduce((total, lead) => total + (lead.value_cents ?? 0), 0);
 
@@ -107,18 +113,22 @@ export function CrmBoard({
     <>
       <div className="pipeline-toolbar">
         <div className="pipeline-summary">
-          <span><strong>{leads.filter((lead) => lead.stage !== "signed").length}</strong> open leads</span>
+          <span><strong>{visibleLeads.filter((lead) => lead.stage !== "signed").length}</strong> open leads</span>
           <span><strong>${(openPipelineValue / 100).toLocaleString()}</strong> monthly pipeline</span>
-          <span><strong>{leads.filter((lead) => lead.stage === "signed").length}</strong> converted</span>
+          <span><strong>{visibleLeads.filter((lead) => lead.stage === "signed").length}</strong> converted</span>
         </div>
-        <button className="btn btn-primary" onClick={() => setEditingLead(null)}>
-          Add lead
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select className="form-input" aria-label="Filter by business" value={businessFilter} onChange={(event) => setBusinessFilter(event.target.value)} style={{ minWidth: 180 }}>
+            <option value="all">All businesses</option>
+            {businesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+          </select>
+          <button className="btn btn-primary" onClick={() => setEditingLead(null)}>Add lead</button>
+        </div>
       </div>
 
       <div className="pipeline-wrap">
         {LEAD_STAGES.map((stage) => {
-          const stageLeads = leads.filter((l) => l.stage === stage.key);
+          const stageLeads = visibleLeads.filter((l) => l.stage === stage.key);
           return (
             <div
               className="pipeline-col"
@@ -145,8 +155,9 @@ export function CrmBoard({
                   onClick={() => setEditingLead(lead)}
                 >
                   <div className="pipeline-card-name">{lead.name}</div>
+                  {businessById.get(lead.business_id) && <div className="business-chip"><span style={{ background: businessById.get(lead.business_id)!.color }} />{businessById.get(lead.business_id)!.name}</div>}
                   <div className="pipeline-card-meta">
-                    {[lead.source, lead.value_cents != null ? `$${lead.value_cents / 100}/mo` : null]
+                    {[lead.service_interest, lead.source, lead.value_cents != null ? `$${lead.value_cents / 100}/mo` : null]
                       .filter(Boolean)
                       .join(" · ") || "No details yet"}
                   </div>
@@ -173,6 +184,8 @@ export function CrmBoard({
       {editingLead !== undefined && (
         <LeadFormModal
           lead={editingLead}
+          businesses={businesses}
+          defaultBusinessId={businessFilter !== "all" ? businessFilter : businesses.find((business) => business.is_default)?.id ?? businesses[0]?.id ?? ""}
           onClose={() => setEditingLead(undefined)}
           onSave={handleSave}
           onDelete={editingLead ? handleDelete : undefined}

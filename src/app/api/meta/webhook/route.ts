@@ -63,9 +63,9 @@ async function processLead(value: Record<string, unknown>) {
 
     const { data: duplicate } = (email || phone) ? await service.from("leads").select("id,external_id").eq("coach_id", source.coach_id).or([email ? `email.ilike.${email}` : "", phone ? `phone.eq.${phone}` : ""].filter(Boolean).join(",")).limit(1).maybeSingle() : { data: null };
     if (duplicate && !duplicate.external_id) {
-      await service.from("leads").update({ external_source: "meta", external_id: leadgenId, source: "Meta Lead Ad", source_details: details, notes }).eq("id", duplicate.id);
+      await service.from("leads").update({ business_id: source.business_id, external_source: "meta", external_id: leadgenId, source: "Meta Lead Ad", source_details: details, notes }).eq("id", duplicate.id);
     } else {
-      const leadRecord = { coach_id: source.coach_id, external_source: "meta", external_id: leadgenId, name: fullName, email: email || null, phone: phone || null, source: "Meta Lead Ad", stage: "new", notes, source_details: details };
+      const leadRecord = { coach_id: source.coach_id, business_id: source.business_id, external_source: "meta", external_id: leadgenId, name: fullName, email: email || null, phone: phone || null, source: "Meta Lead Ad", stage: "new", notes, source_details: details };
       const { data: existingLead } = await service.from("leads").select("id").eq("coach_id", source.coach_id).eq("external_source", "meta").eq("external_id", leadgenId).maybeSingle();
       const { error } = existingLead
         ? await service.from("leads").update(leadRecord).eq("id", existingLead.id)

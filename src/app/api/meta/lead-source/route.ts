@@ -15,15 +15,19 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const pageId = typeof body?.pageId === "string" ? body.pageId.trim() : "";
   const formId = typeof body?.formId === "string" ? body.formId.trim() : "";
+  const businessId = typeof body?.businessId === "string" ? body.businessId.trim() : "";
   if (!/^\d+$/.test(pageId)) return NextResponse.json({ error: "Enter the numeric Facebook Page ID" }, { status: 400 });
   if (formId && !/^\d+$/.test(formId)) return NextResponse.json({ error: "The Form ID must be numeric" }, { status: 400 });
 
   const service = createServiceClient();
+  const { data: business } = await service.from("businesses").select("id").eq("id", businessId).eq("coach_id", user.id).eq("is_active", true).maybeSingle();
+  if (!business) return NextResponse.json({ error: "Choose one of your businesses" }, { status: 400 });
   const { data: connection } = await service.from("meta_connections").select("id").eq("coach_id", user.id).eq("status", "active").maybeSingle();
   if (!connection) return NextResponse.json({ error: "Connect Meta first" }, { status: 400 });
   const record = {
     coach_id: user.id,
     connection_id: connection.id,
+    business_id: business.id,
     meta_page_id: pageId,
     page_name: typeof body?.pageName === "string" ? body.pageName.trim() || null : null,
     meta_form_id: formId || null,

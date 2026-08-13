@@ -8,10 +8,11 @@ import { EventFormModal } from "@/components/event-form-modal";
 import type { Lead, LeadInput } from "@/lib/leads";
 import type { EventType } from "@/lib/events";
 import { useErrorToast } from "@/components/error-toast-provider";
+import type { Business } from "@/lib/businesses";
 
 type QuickAction = "lead" | "appointment" | "client" | null;
 
-export function QuickAdd({ coachId }: { coachId: string }) {
+export function QuickAdd({ coachId, businesses }: { coachId: string; businesses: Business[] }) {
   const router = useRouter();
   const { showError } = useErrorToast();
   const [open, setOpen] = useState(false);
@@ -20,6 +21,7 @@ export function QuickAdd({ coachId }: { coachId: string }) {
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [savingClient, setSavingClient] = useState(false);
+  const [clientBusinessId, setClientBusinessId] = useState(businesses.find((business) => business.is_default)?.id ?? businesses[0]?.id ?? "");
 
   function close() {
     setAction(null);
@@ -66,7 +68,7 @@ export function QuickAdd({ coachId }: { coachId: string }) {
       const response = await fetch("/api/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: clientEmail, fullName: clientName || undefined }),
+        body: JSON.stringify({ email: clientEmail, fullName: clientName || undefined, businessId: clientBusinessId }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || "Failed to invite client");
@@ -97,7 +99,7 @@ export function QuickAdd({ coachId }: { coachId: string }) {
         </button>
       </div>
 
-      {action === "lead" && <LeadFormModal lead={null} onClose={close} onSave={saveLead} />}
+      {action === "lead" && <LeadFormModal lead={null} businesses={businesses} defaultBusinessId={businesses.find((business) => business.is_default)?.id ?? businesses[0]?.id ?? ""} onClose={close} onSave={saveLead} />}
       {action === "appointment" && (
         <EventFormModal event={null} defaultDate={new Date()} leads={leads} onClose={close} onSave={saveEvent} />
       )}
@@ -110,6 +112,7 @@ export function QuickAdd({ coachId }: { coachId: string }) {
             <form onSubmit={inviteClient}>
               <div className="form-row"><label className="form-label">Name</label><input className="form-input" value={clientName} onChange={(event) => setClientName(event.target.value)} placeholder="Client name" /></div>
               <div className="form-row"><label className="form-label">Email</label><input className="form-input" type="email" required value={clientEmail} onChange={(event) => setClientEmail(event.target.value)} placeholder="client@example.com" /></div>
+              <div className="form-row"><label className="form-label">Business</label><select className="form-input" required value={clientBusinessId} onChange={(event) => setClientBusinessId(event.target.value)}>{businesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}</select></div>
               <div className="modal-actions"><button className="btn btn-primary" disabled={savingClient}>{savingClient ? "Sending…" : "Send invitation"}</button><button className="btn" type="button" onClick={close}>Cancel</button></div>
             </form>
           </div>

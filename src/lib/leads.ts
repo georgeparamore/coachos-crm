@@ -22,15 +22,19 @@ export type Lead = {
   external_source?: string | null;
   external_id?: string | null;
   source_details?: Record<string, unknown>;
+  business_id: string;
+  service_interest: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export type LeadInput = {
+  business_id: string;
   name: string;
   email: string;
   phone: string;
   source: string;
+  service_interest: string;
   stage: LeadStage;
   value_cents: number | null;
   fit_score: number | null;

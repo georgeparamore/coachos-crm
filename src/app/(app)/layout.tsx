@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/sidebar";
 import { logServerError } from "@/lib/log-server-error";
 import { ContextNav } from "@/components/context-nav";
 import { QuickAdd } from "@/components/quick-add";
+import type { Business } from "@/lib/businesses";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -36,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq("client_id", user.id)
     .eq("status", "active");
   const hasClientAccess = (activeMembershipCount ?? 0) > 0;
+  const { data: businesses } = profile?.role === "client" ? { data: [] } : await supabase.from("businesses").select("*").eq("coach_id", user.id).eq("is_active", true).order("is_default", { ascending: false }).order("name");
 
   const displayName = profile?.full_name || profile?.email || user.email || "Coach";
   const initials = displayName
@@ -75,7 +77,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         )}
         <ContextNav isClient={profile?.role === "client"} />
         {children}
-        {profile?.role !== "client" && <QuickAdd coachId={user.id} />}
+        {profile?.role !== "client" && <QuickAdd coachId={user.id} businesses={(businesses as Business[]) ?? []} />}
       </div>
     </div>
   );

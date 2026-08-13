@@ -4,6 +4,7 @@ import { useState } from "react";
 import { LEAD_STAGES, type Lead, type LeadInput, type LeadStage } from "@/lib/leads";
 import { getErrorMessage } from "@/lib/errors";
 import { useErrorToast } from "@/components/error-toast-provider";
+import type { Business } from "@/lib/businesses";
 
 function toLocalDateTime(value: string | null | undefined) {
   if (!value) return "";
@@ -18,13 +19,17 @@ type Props = {
   onSave: (input: LeadInput) => Promise<void>;
   onDelete?: () => Promise<void>;
   onConvert?: () => Promise<void>;
+  businesses: Business[];
+  defaultBusinessId: string;
 };
 
-export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert }: Props) {
+export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert, businesses, defaultBusinessId }: Props) {
   const [name, setName] = useState(lead?.name ?? "");
   const [email, setEmail] = useState(lead?.email ?? "");
   const [phone, setPhone] = useState(lead?.phone ?? "");
   const [source, setSource] = useState(lead?.source ?? "");
+  const [businessId, setBusinessId] = useState(lead?.business_id ?? defaultBusinessId);
+  const [serviceInterest, setServiceInterest] = useState(lead?.service_interest ?? "");
   const [stage, setStage] = useState<LeadStage>(lead?.stage ?? "new");
   const [value, setValue] = useState(lead?.value_cents != null ? String(lead.value_cents / 100) : "");
   const [fitScore, setFitScore] = useState(lead?.fit_score != null ? String(lead.fit_score) : "");
@@ -33,6 +38,13 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert }: Pr
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { showError } = useErrorToast();
+  const attribution = lead?.source_details ?? {};
+  const attributionRows = [
+    ["Campaign", attribution.campaign_name],
+    ["Ad", attribution.ad_name],
+    ["Form", attribution.form_name],
+    ["Page", attribution.page_name],
+  ].filter((row): row is [string, string] => typeof row[1] === "string" && row[1].length > 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,10 +52,12 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert }: Pr
     setSaving(true);
     try {
       await onSave({
+        business_id: businessId,
         name,
         email,
         phone,
         source,
+        service_interest: serviceInterest,
         stage,
         value_cents: value ? Math.round(parseFloat(value) * 100) : null,
         fit_score: fitScore ? parseInt(fitScore, 10) : null,
@@ -84,7 +98,23 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert }: Pr
             )}
           </div>
         )}
+        {attributionRows.length > 0 && (
+          <div className="notes-box" style={{ marginBottom: 16 }}>
+            <div className="name" style={{ marginBottom: 6 }}>Original attribution</div>
+            {attributionRows.map(([label, value]) => <div className="sub" key={label}><strong>{label}:</strong> {value}</div>)}
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
+          <div className="form-row">
+            <label className="form-label">Business</label>
+            <select className="form-input" required value={businessId} onChange={(event) => setBusinessId(event.target.value)}>
+              {businesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+            </select>
+          </div>
+          <div className="form-row">
+            <label className="form-label">Service or interest</label>
+            <input className="form-input" placeholder="Custom website, coaching, ad management…" value={serviceInterest} onChange={(event) => setServiceInterest(event.target.value)} />
+          </div>
           <div className="form-row">
             <label className="form-label">Name</label>
             <input className="form-input" required value={name} onChange={(e) => setName(e.target.value)} />

@@ -3,6 +3,7 @@ import { CrmBoard } from "@/components/crm-board";
 import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
 import type { Lead } from "@/lib/leads";
+import type { Business } from "@/lib/businesses";
 
 export default async function CrmPage({
   searchParams,
@@ -15,11 +16,11 @@ export default async function CrmPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: leads, error } = await supabase
-    .from("leads")
-    .select("*")
-    .eq("coach_id", user!.id)
-    .order("created_at", { ascending: false });
+  const [leadsResult, businessesResult] = await Promise.all([
+    supabase.from("leads").select("*").eq("coach_id", user!.id).order("created_at", { ascending: false }),
+    supabase.from("businesses").select("*").eq("coach_id", user!.id).eq("is_active", true).order("is_default", { ascending: false }).order("name"),
+  ]);
+  const { data: leads, error } = leadsResult;
 
   if (error) await logServerError(error, "crm.load", { userId: user!.id, userEmail: user!.email });
 
@@ -34,7 +35,7 @@ export default async function CrmPage({
 
       {error && <DataLoadError what="your leads" />}
 
-      <CrmBoard initialLeads={(leads as Lead[]) ?? []} coachId={user!.id} initialLeadId={initialLeadId} initialCreate={createNew === "1"} />
+      <CrmBoard initialLeads={(leads as Lead[]) ?? []} businesses={(businessesResult.data as Business[]) ?? []} coachId={user!.id} initialLeadId={initialLeadId} initialCreate={createNew === "1"} />
     </div>
   );
 }

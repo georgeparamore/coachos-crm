@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useErrorToast } from "@/components/error-toast-provider";
+import type { Business } from "@/lib/businesses";
 
-type Source = { id: string; meta_page_id: string; page_name: string | null; meta_form_id: string | null; form_name: string | null; last_received_at: string | null };
+type Source = { id: string; business_id: string; meta_page_id: string; page_name: string | null; meta_form_id: string | null; form_name: string | null; last_received_at: string | null };
 
-export function MetaLeadIntakeCard({ sources, webhookReady, verifyToken }: { sources: Source[]; webhookReady: boolean; verifyToken: string | null }) {
+export function MetaLeadIntakeCard({ sources, businesses, webhookReady, verifyToken }: { sources: Source[]; businesses: Business[]; webhookReady: boolean; verifyToken: string | null }) {
   const router = useRouter();
   const { showError } = useErrorToast();
   const [saving, setSaving] = useState(false);
@@ -49,13 +50,14 @@ export function MetaLeadIntakeCard({ sources, webhookReady, verifyToken }: { sou
 
       {sources.map((source) => (
         <div className="list-row" key={source.id}>
-          <div><div className="name">{source.page_name || `Page ${source.meta_page_id}`}</div><div className="sub">{source.form_name || (source.meta_form_id ? `Form ${source.meta_form_id}` : "All Instant Forms")}{source.last_received_at ? ` · Last lead ${new Date(source.last_received_at).toLocaleString()}` : " · Waiting for first lead"}</div></div>
+          <div><div className="name">{source.page_name || `Page ${source.meta_page_id}`}</div><div className="sub">{businesses.find((business) => business.id === source.business_id)?.name ?? "Business"} · {source.form_name || (source.meta_form_id ? `Form ${source.meta_form_id}` : "All Instant Forms")}{source.last_received_at ? ` · Last lead ${new Date(source.last_received_at).toLocaleString()}` : " · Waiting for first lead"}</div></div>
           <button className="btn btn-sm" onClick={() => remove(source.id)}>Remove</button>
         </div>
       ))}
 
       <form action={submit} style={{ marginTop: 16 }}>
         <div className="form-grid">
+          <label className="field"><span>Business</span><select name="businessId" required defaultValue={businesses.find((business) => business.is_default)?.id ?? businesses[0]?.id}>{businesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}</select></label>
           <label className="field"><span>Facebook Page ID</span><input name="pageId" inputMode="numeric" required placeholder="1234567890" /></label>
           <label className="field"><span>Page name</span><input name="pageName" placeholder="Your business page" /></label>
           <label className="field"><span>Instant Form ID (optional)</span><input name="formId" inputMode="numeric" placeholder="Leave blank for all forms" /></label>

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useErrorToast } from "@/components/error-toast-provider";
+import type { Business } from "@/lib/businesses";
 
-export function InviteClientForm() {
+export function InviteClientForm({ businesses }: { businesses: Business[] }) {
   const router = useRouter();
   const { showError } = useErrorToast();
   const [email, setEmail] = useState("");
@@ -13,6 +14,7 @@ export function InviteClientForm() {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [businessId, setBusinessId] = useState(businesses.find((business) => business.is_default)?.id ?? businesses[0]?.id ?? "");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,7 +24,7 @@ export function InviteClientForm() {
       const res = await fetch("/api/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, fullName: fullName || undefined }),
+        body: JSON.stringify({ email, fullName: fullName || undefined, businessId }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -59,6 +61,9 @@ export function InviteClientForm() {
           onChange={(e) => setEmail(e.target.value)}
           style={{ flex: "1 1 200px" }}
         />
+        <select className="form-input" required aria-label="Business" value={businessId} onChange={(event) => setBusinessId(event.target.value)} style={{ flex: "1 1 170px" }}>
+          {businesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+        </select>
         <input
           className="form-input"
           placeholder="Name (optional)"

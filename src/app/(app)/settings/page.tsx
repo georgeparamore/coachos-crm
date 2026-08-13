@@ -6,6 +6,8 @@ import { MetaConnectionRow } from "@/components/meta-connection-row";
 import { MetaAdAccountPicker } from "@/components/meta-ad-account-picker";
 import { MetaLeadIntakeCard } from "@/components/meta-lead-intake-card";
 import { logServerError } from "@/lib/log-server-error";
+import { BusinessManager } from "@/components/business-manager";
+import type { Business } from "@/lib/businesses";
 
 const META_ERROR_MESSAGES: Record<string, string> = {
   declined: "Meta connection was cancelled.",
@@ -31,6 +33,7 @@ export default async function SettingsPage({
     .select("full_name, email, timezone")
     .eq("id", user!.id)
     .single();
+  const { data: businesses } = await supabase.from("businesses").select("*").eq("coach_id", user!.id).order("is_default", { ascending: false }).order("name");
 
   if (error) await logServerError(error, "settings.load", { userId: user!.id, userEmail: user!.email });
 
@@ -47,7 +50,7 @@ export default async function SettingsPage({
 
   let metaAdAccountName: string | null = null;
   let metaAdAccounts: { id: string; name: string; currency: string; is_selected: boolean; meta_ad_account_id: string }[] = [];
-  let metaLeadSources: { id: string; meta_page_id: string; page_name: string | null; meta_form_id: string | null; form_name: string | null; last_received_at: string | null }[] = [];
+  let metaLeadSources: { id: string; business_id: string; meta_page_id: string; page_name: string | null; meta_form_id: string | null; form_name: string | null; last_received_at: string | null }[] = [];
   if (metaConnection) {
     const { data: accounts } = await service
       .from("meta_ad_accounts")
@@ -56,7 +59,7 @@ export default async function SettingsPage({
       .order("name");
     metaAdAccounts = accounts ?? [];
     metaAdAccountName = metaAdAccounts.find((a) => a.is_selected)?.name ?? null;
-    const { data: leadSources } = await service.from("meta_lead_sources").select("id, meta_page_id, page_name, meta_form_id, form_name, last_received_at").eq("coach_id", user!.id).eq("enabled", true).order("created_at");
+    const { data: leadSources } = await service.from("meta_lead_sources").select("id, business_id, meta_page_id, page_name, meta_form_id, form_name, last_received_at").eq("coach_id", user!.id).eq("enabled", true).order("created_at");
     metaLeadSources = leadSources ?? [];
   }
 
@@ -92,13 +95,16 @@ export default async function SettingsPage({
       )}
 
       <div className="two-col">
-        <div className="card">
-          <div className="card-title">Business profile</div>
-          <BusinessProfileForm
-            fullName={profile?.full_name ?? ""}
-            email={profile?.email ?? user!.email ?? ""}
-            timezone={profile?.timezone ?? "UTC"}
-          />
+        <div>
+          <div className="card">
+            <div className="card-title">Business profile</div>
+            <BusinessProfileForm
+              fullName={profile?.full_name ?? ""}
+              email={profile?.email ?? user!.email ?? ""}
+              timezone={profile?.timezone ?? "UTC"}
+            />
+          </div>
+          <BusinessManager initialBusinesses={(businesses as Business[]) ?? []} coachId={user!.id} />
         </div>
 
         <div>
@@ -125,7 +131,7 @@ export default async function SettingsPage({
           </div>
 
           {metaConnection && <MetaAdAccountPicker accounts={metaAdAccounts} />}
-          {metaConnection && <MetaLeadIntakeCard sources={metaLeadSources} webhookReady={Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN && process.env.META_APP_SECRET)} verifyToken={process.env.META_WEBHOOK_VERIFY_TOKEN ?? null} />}
+          {metaConnection && <MetaLeadIntakeCard sources={metaLeadSources} businesses={(businesses as Business[]) ?? []} webhookReady={Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN && process.env.META_APP_SECRET)} verifyToken={process.env.META_WEBHOOK_VERIFY_TOKEN ?? null} />}
 
           <div className="card">
             <div className="card-title">Platform status</div>

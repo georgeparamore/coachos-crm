@@ -1164,6 +1164,8 @@ body {
 .app .pipeline-card { background: var(--surface2); }
 .app .pipeline-card:hover { border-color: var(--accent); background: var(--surface2); }
 .pipeline-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+.business-chip { display: inline-flex; align-items: center; gap: 6px; width: fit-content; margin: 7px 0 2px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-2); font-size: 10px; font-weight: 650; }
+.business-chip > span { width: 7px; height: 7px; border-radius: 99px; }
 .pipeline-summary { display: flex; align-items: center; gap: 22px; color: var(--text-3); font-size: 11px; }
 .pipeline-summary span { display: flex; align-items: baseline; gap: 5px; }
 .pipeline-summary strong { color: var(--text); font-family: Georgia, "Times New Roman", serif; font-size: 18px; font-weight: 600; }

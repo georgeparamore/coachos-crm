@@ -38,10 +38,10 @@ export default async function DashboardPage() {
   const now = new Date();
   const { start: startOfDay, end: endOfDay } = getZonedDayBounds(timezone, now);
 
-  const [leadsRes, eventsRes, eventCountRes, futureClientEventsRes, membershipsRes, invitesRes, enrollmentsRes, coursesRes, subsRes, invoicesRes, contractsRes] = await Promise.all([
+  const [leadsRes, eventsRes, eventCountRes, futureClientEventsRes, membershipsRes, invitesRes, enrollmentsRes, coursesRes, subsRes, invoicesRes, contractsRes, businessesRes] = await Promise.all([
     supabase
       .from("leads")
-      .select("id, name, stage, source, value_cents, follow_up_at, created_at")
+      .select("id, name, stage, source, value_cents, follow_up_at, created_at, business_id")
       .eq("coach_id", user!.id)
       .order("created_at", { ascending: false }),
     supabase
@@ -60,6 +60,7 @@ export default async function DashboardPage() {
     supabase.from("subscriptions").select("status, plan_key").eq("coach_id", user!.id),
     supabase.from("invoices").select("status, amount_cents, created_at").eq("coach_id", user!.id),
     supabase.from("contracts").select("status").eq("coach_id", user!.id),
+    supabase.from("businesses").select("id, name, color").eq("coach_id", user!.id).eq("is_active", true).order("name"),
   ]);
   const { data: leads } = leadsRes;
   const { data: todaysEvents } = eventsRes;
@@ -70,6 +71,7 @@ export default async function DashboardPage() {
   const { data: subscriptions } = subsRes;
   const { data: invoices } = invoicesRes;
   const { data: contracts } = contractsRes;
+  const { data: businesses } = businessesRes;
 
   const clientIds = (memberships ?? []).map((membership) => membership.client_id);
   const enrollmentIds = (enrollmentsData ?? []).map((enrollment) => enrollment.id);
@@ -78,7 +80,7 @@ export default async function DashboardPage() {
     enrollmentIds.length > 0 ? supabase.from("lesson_progress").select("enrollment_id, progress_percent, completed_at, updated_at").in("enrollment_id", enrollmentIds) : Promise.resolve({ data: [], error: null }),
   ]);
 
-  const queryErrors = [leadsRes.error, eventsRes.error, eventCountRes.error, futureClientEventsRes.error, membershipsRes.error, invitesRes.error, enrollmentsRes.error, coursesRes.error, clientProfilesRes.error, progressRes.error, subsRes.error, invoicesRes.error, contractsRes.error].filter(
+  const queryErrors = [leadsRes.error, eventsRes.error, eventCountRes.error, futureClientEventsRes.error, membershipsRes.error, invitesRes.error, enrollmentsRes.error, coursesRes.error, clientProfilesRes.error, progressRes.error, subsRes.error, invoicesRes.error, contractsRes.error, businessesRes.error].filter(
     Boolean,
   );
   if (queryErrors.length > 0) {
@@ -187,6 +189,11 @@ export default async function DashboardPage() {
     ...topSources.map(([label, value]) => ({ label, value, color: "var(--chart-trend)" })),
     ...(otherCount > 0 ? [{ label: "Other", value: otherCount, color: "var(--text-3)" }] : []),
   ];
+  const businessData = (businesses ?? []).map((business) => ({
+    label: business.name,
+    value: allLeads.filter((lead) => lead.business_id === business.id).length,
+    color: business.color,
+  }));
 
   return (
     <div className={`${styles.dashboard} page`}>
@@ -252,6 +259,13 @@ export default async function DashboardPage() {
           )}
         </PreviewCard>
       </div>
+
+      {businessData.length > 1 && (
+        <div className="card" style={{ marginTop: 18 }}>
+          <div className="card-title-row"><div className="card-title">Leads by business</div><Link href="/crm">Open combined pipeline →</Link></div>
+          <BarList data={businessData} formatValue={(value) => `${value} lead${value === 1 ? "" : "s"}`} total={allLeads.length} />
+        </div>
+      )}
 
       <div className={styles.sectionHeading}>
         <div>

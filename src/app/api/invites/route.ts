@@ -24,16 +24,19 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const fullName = typeof body?.fullName === "string" && body.fullName.trim() ? body.fullName.trim() : null;
+  const businessId = typeof body?.businessId === "string" ? body.businessId.trim() : "";
 
   if (!email || !email.includes("@")) {
     return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
   }
+  const { data: business } = await supabase.from("businesses").select("id, name").eq("id", businessId).eq("coach_id", user.id).eq("is_active", true).maybeSingle();
+  if (!business) return NextResponse.json({ error: "Choose one of your businesses" }, { status: 400 });
 
   const token = randomBytes(24).toString("base64url");
 
   const { data: invite, error } = await supabase
     .from("client_invites")
-    .insert({ coach_id: user.id, email, full_name: fullName, token })
+    .insert({ coach_id: user.id, business_id: business.id, email, full_name: fullName, token })
     .select("id, token")
     .single();
 
@@ -51,18 +54,18 @@ export async function POST(request: Request) {
   const coachName = user.user_metadata?.full_name || user.email || "Your coach";
   const { sent, error: emailError } = await sendEmail({
     to: email,
-    subject: `${coachName} invited you to join their coaching platform`,
+    subject: `${coachName} invited you to ${business.name}`,
     replyTo: user.email,
     html: `
       <div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:480px;">
         <h2 style="margin:0 0 12px;">You're invited</h2>
-        <p style="font-size:14px;line-height:1.6;">${coachName} has invited you to join their coaching platform on DJS CRM.</p>
+        <p style="font-size:14px;line-height:1.6;">${coachName} has invited you to join ${business.name} on DJS CRM.</p>
         <p style="margin:20px 0;">
           <a href="${inviteUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;">Accept invite</a>
         </p>
         <p style="font-size:12px;color:#999;">Or paste this link into your browser: ${inviteUrl}</p>
       </div>`,
-    text: `${coachName} has invited you to join their coaching platform on DJS CRM.\n\nAccept your invite: ${inviteUrl}`,
+    text: `${coachName} has invited you to join ${business.name} on DJS CRM.\n\nAccept your invite: ${inviteUrl}`,
   });
 
   if (!sent && emailError) {
