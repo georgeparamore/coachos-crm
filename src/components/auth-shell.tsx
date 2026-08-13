@@ -10,7 +10,7 @@ export function AuthShell({ tagline, children }: { tagline: string; children: Re
   return (
     <div className="auth-shell">
       <div className="auth-hero">
-        <div className="auth-hero-logo">DJS CRM</div>
+        <div className="auth-hero-logo">Full Circle CRM</div>
         <div className="auth-hero-tagline">{tagline}</div>
         <ul className="auth-hero-features">
           {FEATURES.map((f) => (

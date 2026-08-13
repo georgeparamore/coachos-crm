@@ -17,7 +17,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ sent: boolean;
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { sent: false };
 
-  const from = process.env.EMAIL_FROM || "DJS CRM <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM || "Full Circle CRM <onboarding@resend.dev>";
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",

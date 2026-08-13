@@ -54,8 +54,8 @@ export function Sidebar({ userName, userInitials, userPlan, isAdmin, role, hasCl
   return (
     <div className="sidebar">
       <div className="logo">
-        <div className="logo-name">DJS CRM</div>
-        <div className="logo-sub">Your coaching platform</div>
+        <div className="logo-name">Full Circle CRM</div>
+        <div className="logo-sub">Your business, connected</div>
       </div>
 
       {sections.map((section) => (

@@ -12,7 +12,7 @@ export function OnboardingChecklist({ firstName, steps }: { firstName: string; s
       <div className="onboarding-intro">
         <div className="modal-eyebrow">Getting started</div>
         <h2 id="onboarding-title">Let’s set up your workspace, {firstName}.</h2>
-        <p>Four quick steps turn DJS CRM into your daily coaching command center.</p>
+        <p>Four quick steps turn Full Circle CRM into your daily business command center.</p>
         <div className="onboarding-progress"><div style={{ width: `${percent}%` }} /></div>
         <span>{completed} of {steps.length} complete</span>
       </div>

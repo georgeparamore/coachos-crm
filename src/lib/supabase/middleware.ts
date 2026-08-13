@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PATHS = [
   "/login",
   "/signup",
+  "/school",
   "/auth",
   "/portfolio", // public marketing/portfolio site — no account required
   "/api/leads", // public contact-form lead intake for the marketing site

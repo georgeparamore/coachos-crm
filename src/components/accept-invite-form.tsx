@@ -8,10 +8,12 @@ export function AcceptInviteForm({
   token,
   email,
   defaultFullName,
+  schoolSlug,
 }: {
   token: string;
   email: string;
   defaultFullName: string;
+  schoolSlug: string | null;
 }) {
   const router = useRouter();
   const [fullName, setFullName] = useState(defaultFullName);
@@ -32,7 +34,7 @@ export function AcceptInviteForm({
     if (!res.ok) {
       throw new Error(body.error || "Failed to link your account to this coach");
     }
-    router.push("/dashboard");
+    router.push(schoolSlug ? `/school/${schoolSlug}/classroom` : "/dashboard");
     router.refresh();
   }
 
@@ -63,11 +65,11 @@ export function AcceptInviteForm({
       if (signInError) {
         // Account was created successfully even if this sign-in call fails —
         // send them to log in manually rather than leaving them stuck here.
-        router.push("/login");
+        router.push(schoolSlug ? `/school/${schoolSlug}/login` : "/login");
         return;
       }
 
-      router.push("/dashboard");
+      router.push(schoolSlug ? `/school/${schoolSlug}/classroom` : "/dashboard");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

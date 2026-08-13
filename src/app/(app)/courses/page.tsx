@@ -3,6 +3,7 @@ import { CoursesBoard } from "@/components/courses-board";
 import { DataLoadError } from "@/components/data-load-error";
 import { logServerError } from "@/lib/log-server-error";
 import type { Course, CourseModule, Lesson } from "@/lib/courses";
+import type { Business } from "@/lib/businesses";
 
 export default async function CoursesPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
   const { new: createNew } = await searchParams;
@@ -16,6 +17,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
     .select("*")
     .eq("coach_id", user!.id)
     .order("created_at", { ascending: false });
+  const { data: businesses } = await supabase.from("businesses").select("*").eq("coach_id", user!.id).eq("is_active", true).order("is_default", { ascending: false });
 
   const courseIds = (courses ?? []).map((c) => c.id);
 
@@ -95,6 +97,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
         enrollmentCountByCourse={enrollmentCountByCourse}
         enrolledClientIdsByCourse={enrolledClientIdsByCourse}
         clients={profilesResult.data ?? []}
+        businesses={(businesses as Business[]) ?? []}
         enrollmentProgressByCourseClient={enrollmentProgressByCourseClient}
         coachId={user!.id}
         initialCreate={createNew === "1"}

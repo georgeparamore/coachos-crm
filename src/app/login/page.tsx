@@ -6,14 +6,11 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { AuthShell } from "@/components/auth-shell";
 
-type Role = "coach" | "client";
-
 const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL;
 const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
 
 export default function LoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<Role>("coach");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -21,7 +18,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
 
-  async function signIn(emailToUse: string, passwordToUse: string, roleToCheck: Role) {
+  async function signIn(emailToUse: string, passwordToUse: string) {
     const supabase = createClient();
     const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email: emailToUse,
@@ -38,9 +35,9 @@ export default function LoginPage() {
       .eq("id", data.user.id)
       .single();
 
-    if (!profile || profile.role !== roleToCheck) {
+    if (!profile || profile.role !== "coach") {
       await supabase.auth.signOut();
-      return `No ${roleToCheck} account found for these credentials.`;
+      return "This is the coach login. Students should use the school link provided by their coach.";
     }
 
     router.push("/dashboard");
@@ -52,7 +49,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const failure = await signIn(email, password, role);
+    const failure = await signIn(email, password);
     if (failure) setError(failure);
     setLoading(false);
   }
@@ -61,7 +58,7 @@ export default function LoginPage() {
     if (!DEMO_EMAIL || !DEMO_PASSWORD) return;
     setError(null);
     setDemoLoading(true);
-    const failure = await signIn(DEMO_EMAIL, DEMO_PASSWORD, "coach");
+    const failure = await signIn(DEMO_EMAIL, DEMO_PASSWORD);
     if (failure) setError(failure);
     setDemoLoading(false);
   }
@@ -69,10 +66,10 @@ export default function LoginPage() {
   return (
     <AuthShell tagline="Run your coaching business from one place.">
       <div className="logo-name" style={{ marginBottom: 2 }}>
-        DJS CRM
+        Full Circle CRM
       </div>
       <div className="page-sub" style={{ marginBottom: 20 }}>
-        Welcome back — sign in to your platform
+        Welcome back — sign in to your CRM
       </div>
 
       {DEMO_EMAIL && DEMO_PASSWORD && (
@@ -96,38 +93,6 @@ export default function LoginPage() {
           </div>
         </>
       )}
-
-      <div
-        style={{
-          display: "flex",
-          gap: 6,
-          marginBottom: 18,
-          background: "var(--surface2)",
-          padding: 4,
-          borderRadius: "var(--radius)",
-        }}
-      >
-        {(["coach", "client"] as Role[]).map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => {
-              setRole(r);
-              setError(null);
-            }}
-            className="btn btn-sm"
-            style={{
-              flex: 1,
-              justifyContent: "center",
-              border: "none",
-              background: role === r ? "var(--surface)" : "transparent",
-              fontWeight: role === r ? 500 : 400,
-            }}
-          >
-            {r === "coach" ? "Coach login" : "Client login"}
-          </button>
-        ))}
-      </div>
 
       <form onSubmit={handleSubmit}>
         <div className="form-row">
@@ -185,14 +150,13 @@ export default function LoginPage() {
         </button>
       </form>
 
-      {role === "coach" && (
-        <div className="sub" style={{ marginTop: 14, textAlign: "center" }}>
+      <div className="sub" style={{ marginTop: 14, textAlign: "center" }}>
           No account yet?{" "}
           <Link href="/signup" style={{ color: "var(--accent)" }}>
             Create one
           </Link>
         </div>
-      )}
+      <div className="sub" style={{ marginTop: 8, textAlign: "center" }}>Student? Use your school&apos;s private login link.</div>
     </AuthShell>
   );
 }

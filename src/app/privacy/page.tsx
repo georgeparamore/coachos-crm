@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Privacy Policy — DJS CRM",
+  title: "Privacy Policy — Full Circle CRM",
 };
 
 export default function PrivacyPage() {
@@ -9,8 +9,8 @@ export default function PrivacyPage() {
       <p>Last updated: {new Date().getFullYear()}</p>
 
       <p>
-        DJS CRM is a coaching-business management platform. This page describes, at a high
-        level, what data DJS CRM collects and how it is used. This is a placeholder policy
+        Full Circle CRM is a business management platform. This page describes, at a high
+        level, what data Full Circle CRM collects and how it is used. This is a placeholder policy
         for early development and testing — it will be replaced with a complete policy before
         the product is used by real clients.
       </p>

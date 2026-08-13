@@ -5,7 +5,7 @@ import "./globals.css";
 import { ErrorToastProvider } from "@/components/error-toast-provider";
 
 export const metadata: Metadata = {
-  title: "DJS CRM — Your platform",
+  title: "Full Circle CRM — Your business, connected",
   description: "Run your coaching business — CRM, subscriptions, contracts, courses, and community — from one place.",
 };
 

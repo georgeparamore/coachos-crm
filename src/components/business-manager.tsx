@@ -42,7 +42,7 @@ export function BusinessManager({ initialBusinesses, coachId }: { initialBusines
       const supabase = createClient();
       const baseSlug = businessSlug(name);
       const slug = businesses.some((business) => business.slug === baseSlug) ? `${baseSlug}-${Date.now().toString().slice(-4)}` : baseSlug;
-      const { data, error } = await supabase.from("businesses").insert({ coach_id: coachId, name: name.trim(), slug, color, is_default: businesses.length === 0 }).select().single();
+      const { data, error } = await supabase.from("businesses").insert({ coach_id: coachId, name: name.trim(), slug, color, portal_name: name.trim(), is_default: businesses.length === 0 }).select().single();
       if (error) throw error;
       setBusinesses((items) => [...items, data as Business]);
       setName("");
@@ -90,6 +90,20 @@ export function BusinessManager({ initialBusinesses, coachId }: { initialBusines
     }
   }
 
+  async function editSchool(business: Business) {
+    const portalName = window.prompt("Student-facing school name", business.portal_name || business.name)?.trim();
+    if (!portalName) return;
+    const portalTagline = window.prompt("School tagline", business.portal_tagline || "Learn, connect, and grow.")?.trim();
+    if (portalTagline == null) return;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("businesses").update({ portal_name: portalName, portal_tagline: portalTagline }).eq("id", business.id);
+      if (error) throw error;
+      setBusinesses((items) => items.map((item) => item.id === business.id ? { ...item, portal_name: portalName, portal_tagline: portalTagline } : item));
+      router.refresh();
+    } catch (error) { showError(error, "settings.school-branding"); }
+  }
+
   return (
     <div className="card">
       <div className="card-title">Businesses & brands</div>
@@ -97,11 +111,13 @@ export function BusinessManager({ initialBusinesses, coachId }: { initialBusines
       {businesses.map((business) => (
         <div className="list-row business-manager-row" key={business.id}>
           <div className="business-manager-identity">
-            <div><div className="name">{business.name}</div><div className="sub">{business.is_default ? "Default for new leads" : "Separate lead pipeline available"}</div></div>
+            <div><div className="name">{business.name}</div><div className="sub">School: {business.portal_name || business.name} · /school/{business.slug}/login</div></div>
             <ColorStrip value={business.color} onChange={(nextColor) => void updateColor(business, nextColor)} label={`Color for ${business.name}`} />
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             {!business.is_default && <button className="btn btn-sm" type="button" onClick={() => makeDefault(business.id)}>Make default</button>}
+            <a className="btn btn-sm" href={`/school/${business.slug}/login`} target="_blank" rel="noreferrer">Open school</a>
+            <button className="btn btn-sm" type="button" onClick={() => editSchool(business)}>School branding</button>
             <button className="btn btn-sm" type="button" onClick={() => rename(business)}>Rename</button>
           </div>
         </div>

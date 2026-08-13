@@ -18,7 +18,7 @@ export default async function SignContractPage({ params }: { params: Promise<{ t
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "40px 24px" }}>
       <div className="logo-name" style={{ marginBottom: 4 }}>
-        DJS CRM
+        Full Circle CRM
       </div>
       <div className="page-sub" style={{ marginBottom: 24 }}>
         {contract.contract_type} for {contract.client_name}

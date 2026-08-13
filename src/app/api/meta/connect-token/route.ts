@@ -116,7 +116,7 @@ export async function POST(request: Request) {
       const appId = process.env.META_APP_ID;
       return NextResponse.json(
         {
-          error: `That token was generated for a different Meta app. Generate a new System User token and select ${appId ? `the DJS CRM app (App ID ${appId})` : "the same Meta app configured in DJS CRM"}.`,
+          error: `That token was generated for a different Meta app. Generate a new System User token and select ${appId ? `the Full Circle CRM app (App ID ${appId})` : "the same Meta app configured in Full Circle CRM"}.`,
         },
         { status: 400 },
       );

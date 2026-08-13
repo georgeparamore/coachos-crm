@@ -9,17 +9,19 @@ import { LessonFormModal } from "@/components/lesson-form-modal";
 import { CourseEnrollmentModal, type CourseClient } from "@/components/course-enrollment-modal";
 import { useErrorToast } from "@/components/error-toast-provider";
 import { COURSE_STATUS_LABEL, type Course, type CourseInput, type CourseModule, type Lesson, type LessonInput } from "@/lib/courses";
+import type { Business } from "@/lib/businesses";
 
 type LessonEditor = { courseId: string; moduleId: string; lesson: Lesson | null };
 type DragItem = { type: "module"; courseId: string; moduleId: string } | { type: "lesson"; moduleId: string; lessonId: string };
 
-export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLessonsByModule, enrollmentCountByCourse: initialEnrollmentCountByCourse, enrolledClientIdsByCourse: initialEnrolledClientIdsByCourse, enrollmentProgressByCourseClient, clients, coachId, initialCreate }: {
+export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLessonsByModule, enrollmentCountByCourse: initialEnrollmentCountByCourse, enrolledClientIdsByCourse: initialEnrolledClientIdsByCourse, enrollmentProgressByCourseClient, clients, businesses, coachId, initialCreate }: {
   initialCourses: Course[];
   initialModulesByCourse: Record<string, CourseModule[]>;
   initialLessonsByModule: Record<string, Lesson[]>;
   enrollmentCountByCourse: Record<string, number>;
   enrolledClientIdsByCourse: Record<string, string[]>;
   clients: CourseClient[];
+  businesses: Business[];
   enrollmentProgressByCourseClient: Record<string, number>;
   coachId: string;
   initialCreate?: boolean;
@@ -298,7 +300,7 @@ export function CoursesBoard({ initialCourses, initialModulesByCourse, initialLe
       })}
     </div>}
 
-    {editingCourse !== undefined && <CourseFormModal course={editingCourse} onClose={() => setEditingCourse(undefined)} onSave={saveCourse} onDelete={editingCourse ? deleteCourse : undefined} />}
+    {editingCourse !== undefined && <CourseFormModal businesses={businesses} course={editingCourse} onClose={() => setEditingCourse(undefined)} onSave={saveCourse} onDelete={editingCourse ? deleteCourse : undefined} />}
     {lessonEditor && <LessonFormModal lesson={lessonEditor.lesson} onClose={() => setLessonEditor(null)} onSave={saveLesson} />}
     {enrollmentCourse && <CourseEnrollmentModal courseId={enrollmentCourse.id} courseTitle={enrollmentCourse.title} clients={clients} initialClientIds={enrolledClientIdsByCourse[enrollmentCourse.id] ?? []} progressByClientId={Object.fromEntries(clients.map((client) => [client.id, enrollmentProgressByCourseClient[`${enrollmentCourse.id}:${client.id}`] ?? 0]))} onClose={() => setEnrollmentCourse(null)} onSaved={(clientIds) => { setEnrolledClientIdsByCourse((current) => ({ ...current, [enrollmentCourse.id]: clientIds })); setEnrollmentCourse(null); router.refresh(); }} />}
   </>;

@@ -17,6 +17,7 @@ export const COURSE_STATUS_BADGE: Record<CourseStatus, string> = Object.fromEntr
 export type Course = {
   id: string;
   coach_id: string;
+  business_id: string;
   title: string;
   description: string | null;
   status: CourseStatus;
@@ -26,6 +27,7 @@ export type Course = {
 };
 
 export type CourseInput = {
+  business_id: string;
   title: string;
   description: string;
   status: CourseStatus;

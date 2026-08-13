@@ -22,10 +22,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "clientId and courseId are required" }, { status: 400 });
   }
 
-  // RLS ("enrollments: coach full access to own rows") scopes this to
-  // courses the caller actually owns — coach_id is set server-side by the
-  // enrollments_set_coach_id trigger from courses.coach_id, not trusted
-  // client input, so there's no separate ownership check needed here.
+  const { data: course } = await supabase.from("courses").select("business_id").eq("id", courseId).eq("coach_id", user.id).maybeSingle();
+  if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
+  const { data: membership } = await supabase.from("coach_client_memberships").select("id").eq("business_id", course.business_id).eq("client_id", clientId).eq("status", "active").maybeSingle();
+  if (!membership) return NextResponse.json({ error: "This student does not belong to the course's school" }, { status: 400 });
+
   const { error } = await supabase.from("enrollments").insert({ client_id: clientId, course_id: courseId });
 
   if (error) {
@@ -51,14 +52,14 @@ export async function PUT(request: Request) {
     : null;
   if (!courseId || !clientIds) return NextResponse.json({ error: "courseId and clientIds are required" }, { status: 400 });
 
-  const { data: course } = await supabase.from("courses").select("id").eq("id", courseId).eq("coach_id", user.id).maybeSingle();
+  const { data: course } = await supabase.from("courses").select("id, business_id").eq("id", courseId).eq("coach_id", user.id).maybeSingle();
   if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
 
   if (clientIds.length) {
     const { data: memberships, error: membershipsError } = await supabase
       .from("coach_client_memberships")
       .select("client_id")
-      .eq("coach_id", user.id)
+      .eq("business_id", course.business_id)
       .eq("status", "active")
       .in("client_id", clientIds);
     if (membershipsError) {

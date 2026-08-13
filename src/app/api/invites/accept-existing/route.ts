@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
   const { data: invite, error: inviteError } = await service
     .from("client_invites")
-    .select("id, coach_id, email, status")
+    .select("id, coach_id, business_id, email, status")
     .eq("token", token)
     .maybeSingle();
 
@@ -49,11 +49,12 @@ export async function POST(request: Request) {
   const { error: membershipError } = await service.from("coach_client_memberships").upsert(
     {
       coach_id: invite.coach_id,
+      business_id: invite.business_id,
       client_id: user.id,
       status: "active",
       accepted_at: new Date().toISOString(),
     },
-    { onConflict: "coach_id,client_id" },
+    { onConflict: "business_id,client_id" },
   );
 
   if (membershipError) {

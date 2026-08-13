@@ -50,7 +50,7 @@ export default function SignupPage() {
   return (
     <AuthShell tagline="Set up your coaching business in minutes.">
       <div className="logo-name" style={{ marginBottom: 2 }}>
-        DJS CRM
+        Full Circle CRM
       </div>
       <div className="page-sub" style={{ marginBottom: 20 }}>
         Create your coach account
