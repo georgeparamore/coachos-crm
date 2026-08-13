@@ -19,11 +19,12 @@ type Props = {
   onSave: (input: LeadInput) => Promise<void>;
   onDelete?: () => Promise<void>;
   onConvert?: () => Promise<void>;
+  onContact?: (type: "call" | "email" | "text") => Promise<void>;
   businesses: Business[];
   defaultBusinessId: string;
 };
 
-export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert, businesses, defaultBusinessId }: Props) {
+export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert, onContact, businesses, defaultBusinessId }: Props) {
   const [name, setName] = useState(lead?.name ?? "");
   const [email, setEmail] = useState(lead?.email ?? "");
   const [phone, setPhone] = useState(lead?.phone ?? "");
@@ -79,8 +80,9 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert, busi
         <div className="card-title">{lead ? "Edit lead" : "Add lead"}</div>
         {lead && (
           <div className="lead-action-strip">
-            {lead.email && <a className="btn btn-sm" href={`mailto:${lead.email}`}>Email</a>}
-            {lead.phone && <a className="btn btn-sm" href={`tel:${lead.phone}`}>Call</a>}
+            {lead.email && <a className="btn btn-sm" href={`mailto:${lead.email}`} onClick={() => void onContact?.("email")}>Email</a>}
+            {lead.phone && <a className="btn btn-sm" href={`tel:${lead.phone}`} onClick={() => void onContact?.("call")}>Call</a>}
+            {lead.phone && <a className="btn btn-sm" href={`sms:${lead.phone}`} onClick={() => void onContact?.("text")}>Text</a>}
             <a className="btn btn-sm" href={`/calendar?lead=${lead.id}`}>Schedule follow-up</a>
             {onConvert && lead.stage !== "signed" && (
               <button className="btn btn-sm btn-accent" type="button" disabled={saving} onClick={async () => {
@@ -98,6 +100,7 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert, busi
             )}
           </div>
         )}
+        {lead?.last_contacted_at && <div className="sub" style={{ margin: "-4px 0 14px" }}>Last contacted {new Date(lead.last_contacted_at).toLocaleString()}</div>}
         {attributionRows.length > 0 && (
           <div className="notes-box" style={{ marginBottom: 16 }}>
             <div className="name" style={{ marginBottom: 6 }}>Original attribution</div>

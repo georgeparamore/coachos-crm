@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { decryptToken } from "@/lib/meta/crypto";
 import { fetchLead } from "@/lib/meta/client";
 import { logServerError } from "@/lib/log-server-error";
+import { sendEmail } from "@/lib/email/resend";
 
 export const runtime = "nodejs";
 
@@ -29,6 +30,10 @@ function answerMap(fieldData: { name: string; values?: string[] }[] = []) {
 function first(answers: Record<string, string>, keys: string[]) {
   for (const key of keys) if (answers[key]?.trim()) return answers[key].trim();
   return "";
+}
+
+function escapeHtml(value: string) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
 
 async function processLead(value: Record<string, unknown>) {
@@ -62,17 +67,39 @@ async function processLead(value: Record<string, unknown>) {
     const details = { platform: "meta", page_id: pageId, page_name: source.page_name, form_id: formId, form_name: source.form_name, ad_id: metaLead.ad_id, ad_name: metaLead.ad_name, adset_id: metaLead.adset_id, adset_name: metaLead.adset_name, campaign_id: metaLead.campaign_id, campaign_name: metaLead.campaign_name, answers };
 
     const { data: duplicate } = (email || phone) ? await service.from("leads").select("id,external_id").eq("coach_id", source.coach_id).or([email ? `email.ilike.${email}` : "", phone ? `phone.eq.${phone}` : ""].filter(Boolean).join(",")).limit(1).maybeSingle() : { data: null };
+    let crmLeadId: string;
     if (duplicate && !duplicate.external_id) {
-      await service.from("leads").update({ business_id: source.business_id, external_source: "meta", external_id: leadgenId, source: "Meta Lead Ad", source_details: details, notes }).eq("id", duplicate.id);
+      const { error } = await service.from("leads").update({ business_id: source.business_id, external_source: "meta", external_id: leadgenId, source: "Meta Lead Ad", source_details: details, notes }).eq("id", duplicate.id);
+      if (error) throw error;
+      crmLeadId = duplicate.id;
     } else {
       const leadRecord = { coach_id: source.coach_id, business_id: source.business_id, external_source: "meta", external_id: leadgenId, name: fullName, email: email || null, phone: phone || null, source: "Meta Lead Ad", stage: "new", notes, source_details: details };
       const { data: existingLead } = await service.from("leads").select("id").eq("coach_id", source.coach_id).eq("external_source", "meta").eq("external_id", leadgenId).maybeSingle();
-      const { error } = existingLead
-        ? await service.from("leads").update(leadRecord).eq("id", existingLead.id)
-        : await service.from("leads").insert(leadRecord);
+      const { data: savedLead, error } = existingLead
+        ? await service.from("leads").update(leadRecord).eq("id", existingLead.id).select("id").single()
+        : await service.from("leads").insert(leadRecord).select("id").single();
       if (error) throw error;
+      crmLeadId = savedLead.id;
     }
-    await service.from("notification_deliveries").insert({ profile_id: source.coach_id, event_type: "new_meta_lead", channel: "in_app", payload: { leadgen_id: leadgenId, name: fullName, email, phone }, idempotency_key: `new_meta_lead:${leadgenId}` });
+    const [{ data: coach }, { data: business }, { data: preferences }] = await Promise.all([
+      service.from("profiles").select("email").eq("id", source.coach_id).single(),
+      service.from("businesses").select("name").eq("id", source.business_id).single(),
+      service.from("notification_preferences").select("email_enabled,event_settings").eq("profile_id", source.coach_id).maybeSingle(),
+    ]);
+    const notificationPayload = { leadgen_id: leadgenId, lead_id: crmLeadId, name: fullName, email, phone, business_name: business?.name ?? "Business" };
+    await service.from("notification_deliveries").insert({ profile_id: source.coach_id, event_type: "new_meta_lead", channel: "in_app", payload: notificationPayload, status: "sent", sent_at: new Date().toISOString(), idempotency_key: `new_meta_lead:${leadgenId}:in_app` });
+    const emailAllowed = preferences?.email_enabled !== false && preferences?.event_settings?.new_meta_lead !== false;
+    if (coach?.email && emailAllowed) {
+      const crmUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://coachos-drab.vercel.app"}/crm?lead=${crmLeadId}`;
+      const result = await sendEmail({
+        to: coach.email,
+        replyTo: email || undefined,
+        subject: `New ${business?.name ?? "business"} lead: ${fullName}`,
+        html: `<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:520px"><h2>New lead received</h2><p><strong>${escapeHtml(fullName)}</strong> submitted your ${escapeHtml(source.form_name || "Meta Instant Form")}.</p><p>Business: ${escapeHtml(business?.name ?? "Business")}<br>Email: ${escapeHtml(email || "Not provided")}<br>Phone: ${escapeHtml(phone || "Not provided")}</p><p><a href="${crmUrl}" style="display:inline-block;background:#171717;color:#fff;padding:11px 18px;border-radius:8px;text-decoration:none">Open lead in DJS CRM</a></p></div>`,
+        text: `New lead received: ${fullName}\nBusiness: ${business?.name ?? "Business"}\nEmail: ${email || "Not provided"}\nPhone: ${phone || "Not provided"}\n\nOpen lead: ${crmUrl}`,
+      });
+      await service.from("notification_deliveries").insert({ profile_id: source.coach_id, event_type: "new_meta_lead", channel: "email", payload: notificationPayload, status: result.sent ? "sent" : "failed", sent_at: result.sent ? new Date().toISOString() : null, failed_at: result.sent ? null : new Date().toISOString(), error: result.error ?? null, attempt_count: 1, idempotency_key: `new_meta_lead:${leadgenId}:email` });
+    }
     await service.from("meta_lead_sources").update({ last_received_at: new Date().toISOString() }).eq("id", source.id);
     await service.from("meta_lead_webhook_events").upsert({ ...baseEvent, coach_id: source.coach_id, source_id: source.id, status: duplicate ? "duplicate" : "processed", processed_at: new Date().toISOString(), error: null }, { onConflict: "meta_leadgen_id" });
   } catch (error) {

@@ -51,6 +51,7 @@ export default async function SettingsPage({
   let metaAdAccountName: string | null = null;
   let metaAdAccounts: { id: string; name: string; currency: string; is_selected: boolean; meta_ad_account_id: string }[] = [];
   let metaLeadSources: { id: string; business_id: string; meta_page_id: string; page_name: string | null; meta_form_id: string | null; form_name: string | null; last_received_at: string | null }[] = [];
+  let metaLeadHealth: { processed: number; failed: number; unmapped: number; lastEventAt: string | null } = { processed: 0, failed: 0, unmapped: 0, lastEventAt: null };
   if (metaConnection) {
     const { data: accounts } = await service
       .from("meta_ad_accounts")
@@ -61,6 +62,13 @@ export default async function SettingsPage({
     metaAdAccountName = metaAdAccounts.find((a) => a.is_selected)?.name ?? null;
     const { data: leadSources } = await service.from("meta_lead_sources").select("id, business_id, meta_page_id, page_name, meta_form_id, form_name, last_received_at").eq("coach_id", user!.id).eq("enabled", true).order("created_at");
     metaLeadSources = leadSources ?? [];
+    const { data: leadEvents } = await service.from("meta_lead_webhook_events").select("status, created_at").eq("coach_id", user!.id).order("created_at", { ascending: false }).limit(100);
+    metaLeadHealth = {
+      processed: (leadEvents ?? []).filter((event) => event.status === "processed" || event.status === "duplicate").length,
+      failed: (leadEvents ?? []).filter((event) => event.status === "failed").length,
+      unmapped: (leadEvents ?? []).filter((event) => event.status === "unmapped").length,
+      lastEventAt: leadEvents?.[0]?.created_at ?? null,
+    };
   }
 
   const integrations = [
@@ -131,7 +139,7 @@ export default async function SettingsPage({
           </div>
 
           {metaConnection && <MetaAdAccountPicker accounts={metaAdAccounts} />}
-          {metaConnection && <MetaLeadIntakeCard sources={metaLeadSources} businesses={(businesses as Business[]) ?? []} webhookReady={Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN && process.env.META_APP_SECRET)} verifyToken={process.env.META_WEBHOOK_VERIFY_TOKEN ?? null} />}
+          {metaConnection && <MetaLeadIntakeCard sources={metaLeadSources} businesses={(businesses as Business[]) ?? []} health={metaLeadHealth} webhookReady={Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN && process.env.META_APP_SECRET)} verifyToken={process.env.META_WEBHOOK_VERIFY_TOKEN ?? null} />}
 
           <div className="card">
             <div className="card-title">Platform status</div>

@@ -38,6 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq("status", "active");
   const hasClientAccess = (activeMembershipCount ?? 0) > 0;
   const { data: businesses } = profile?.role === "client" ? { data: [] } : await supabase.from("businesses").select("*").eq("coach_id", user.id).eq("is_active", true).order("is_default", { ascending: false }).order("name");
+  const { data: notifications } = profile?.role === "client" ? { data: [] } : await supabase.from("notification_deliveries").select("id, event_type, payload, read_at, created_at").eq("profile_id", user.id).eq("channel", "in_app").order("created_at", { ascending: false }).limit(12);
 
   const displayName = profile?.full_name || profile?.email || user.email || "Coach";
   const initials = displayName
@@ -75,7 +76,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             You&apos;re viewing a shared demo workspace — changes are visible to other visitors and may be reset.
           </div>
         )}
-        <ContextNav isClient={profile?.role === "client"} />
+        <ContextNav isClient={profile?.role === "client"} notifications={notifications ?? []} />
         {children}
         {profile?.role !== "client" && <QuickAdd coachId={user.id} businesses={(businesses as Business[]) ?? []} />}
       </div>

@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CONTEXT_NAV } from "@/components/nav-config";
+import { NotificationCenter } from "@/components/notification-center";
 
-export function ContextNav({ isClient }: { isClient: boolean }) {
+type Notification = { id: string; event_type: string; payload: Record<string, unknown>; read_at: string | null; created_at: string };
+
+export function ContextNav({ isClient, notifications = [] }: { isClient: boolean; notifications?: Notification[] }) {
   const pathname = usePathname();
   if (isClient) return null;
   const section = CONTEXT_NAV.find((entry) => entry.paths.some((path) => pathname.startsWith(path)));
@@ -19,6 +22,7 @@ export function ContextNav({ isClient }: { isClient: boolean }) {
           return <Link className={active ? "active" : ""} href={item.href} key={item.href}>{item.label}</Link>;
         })}
       </div>
+      <NotificationCenter initialNotifications={notifications} />
     </nav>
   );
 }

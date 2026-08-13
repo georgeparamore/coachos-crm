@@ -105,6 +105,22 @@ export function CrmBoard({
     router.push("/clients");
   }
 
+  async function logContact(type: "call" | "email" | "text") {
+    if (!editingLead) return;
+    const occurredAt = new Date().toISOString();
+    const supabase = createClient();
+    const { error } = await supabase.from("lead_activities").insert({ coach_id: coachId, lead_id: editingLead.id, activity_type: type, occurred_at: occurredAt });
+    if (error) {
+      showError(error, "crm.contact-log");
+      return;
+    }
+    const nextStage = editingLead.stage === "new" ? "in_conversation" : editingLead.stage;
+    setLeads((items) => items.map((item) => item.id === editingLead.id ? { ...item, stage: nextStage, last_contacted_at: occurredAt } : item));
+    setEditingLead((lead) => lead ? { ...lead, stage: nextStage, last_contacted_at: occurredAt } : lead);
+    if (nextStage !== editingLead.stage) await supabase.from("leads").update({ stage: nextStage }).eq("id", editingLead.id);
+    router.refresh();
+  }
+
   const openPipelineValue = visibleLeads
     .filter((lead) => lead.stage !== "signed")
     .reduce((total, lead) => total + (lead.value_cents ?? 0), 0);
@@ -190,6 +206,7 @@ export function CrmBoard({
           onSave={handleSave}
           onDelete={editingLead ? handleDelete : undefined}
           onConvert={editingLead ? convertLead : undefined}
+          onContact={editingLead ? logContact : undefined}
         />
       )}
     </>

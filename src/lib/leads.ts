@@ -24,6 +24,7 @@ export type Lead = {
   source_details?: Record<string, unknown>;
   business_id: string;
   service_interest: string | null;
+  last_contacted_at: string | null;
   created_at: string;
   updated_at: string;
 };

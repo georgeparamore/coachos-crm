@@ -7,7 +7,9 @@ import type { Business } from "@/lib/businesses";
 
 type Source = { id: string; business_id: string; meta_page_id: string; page_name: string | null; meta_form_id: string | null; form_name: string | null; last_received_at: string | null };
 
-export function MetaLeadIntakeCard({ sources, businesses, webhookReady, verifyToken }: { sources: Source[]; businesses: Business[]; webhookReady: boolean; verifyToken: string | null }) {
+type Health = { processed: number; failed: number; unmapped: number; lastEventAt: string | null };
+
+export function MetaLeadIntakeCard({ sources, businesses, health, webhookReady, verifyToken }: { sources: Source[]; businesses: Business[]; health: Health; webhookReady: boolean; verifyToken: string | null }) {
   const router = useRouter();
   const { showError } = useErrorToast();
   const [saving, setSaving] = useState(false);
@@ -47,6 +49,14 @@ export function MetaLeadIntakeCard({ sources, businesses, webhookReady, verifyTo
         <div className="sub">{sources.length ? "✓" : "○"} Facebook Page/form mapped</div>
         <div className="sub">{sources.some((source) => source.last_received_at) ? "✓" : "○"} Test lead received</div>
       </div>
+
+      <div className="meta-health-grid">
+        <div><strong>{health.processed}</strong><span>received</span></div>
+        <div className={health.failed ? "has-error" : ""}><strong>{health.failed}</strong><span>failed</span></div>
+        <div className={health.unmapped ? "has-warning" : ""}><strong>{health.unmapped}</strong><span>unmapped</span></div>
+      </div>
+      {(health.failed > 0 || health.unmapped > 0) && <div className="notes-box" style={{ background: "var(--amber-bg)", color: "var(--amber-text)", marginBottom: 14 }}>Some Meta submissions need attention. Failed events usually indicate a token or permission problem; unmapped events need the correct Page/Form mapping below.</div>}
+      {health.lastEventAt && <p className="sub" style={{ marginBottom: 12 }}>Last webhook activity: {new Date(health.lastEventAt).toLocaleString()}</p>}
 
       {sources.map((source) => (
         <div className="list-row" key={source.id}>
