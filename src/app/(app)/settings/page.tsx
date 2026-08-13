@@ -60,7 +60,7 @@ export default async function SettingsPage({
       .order("name");
     metaAdAccounts = accounts ?? [];
     metaAdAccountName = metaAdAccounts.find((a) => a.is_selected)?.name ?? null;
-    const { data: leadSources } = await service.from("meta_lead_sources").select("id, business_id, meta_page_id, page_name, meta_form_id, form_name, last_received_at").eq("coach_id", user!.id).eq("enabled", true).order("created_at");
+    const { data: leadSources } = await service.from("meta_lead_sources").select("id, business_id, meta_page_id, page_name, meta_form_id, form_name, meta_ad_account_id, last_received_at").eq("coach_id", user!.id).eq("enabled", true).order("created_at");
     metaLeadSources = leadSources ?? [];
     const { data: leadEvents } = await service.from("meta_lead_webhook_events").select("status, created_at").eq("coach_id", user!.id).order("created_at", { ascending: false }).limit(100);
     metaLeadHealth = {

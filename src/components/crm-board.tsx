@@ -29,8 +29,16 @@ export function CrmBoard({
   );
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
   const [businessFilter, setBusinessFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const businessById = new Map(businesses.map((business) => [business.id, business]));
-  const visibleLeads = businessFilter === "all" ? leads : leads.filter((lead) => lead.business_id === businessFilter);
+  const visibleLeads = leads.filter((lead) => {
+    if (businessFilter !== "all" && lead.business_id !== businessFilter) return false;
+    if (sourceFilter !== "all" && lead.source !== sourceFilter) return false;
+    const query = search.trim().toLowerCase();
+    return !query || [lead.name, lead.email, lead.phone, lead.business_name, lead.service_interest].some((value) => value?.toLowerCase().includes(query));
+  });
+  const sources = Array.from(new Set(leads.map((lead) => lead.source).filter((value): value is string => Boolean(value)))).sort();
 
   useEffect(() => {
     if (initialLeadId || initialCreate) router.replace("/crm");
@@ -67,7 +75,7 @@ export function CrmBoard({
   async function handleDelete() {
     if (!editingLead) return;
     const supabase = createClient();
-    const { error } = await supabase.from("leads").delete().eq("id", editingLead.id);
+    const { error } = await supabase.from("leads").update({ deleted_at: new Date().toISOString() }).eq("id", editingLead.id);
     if (error) throw error;
     setLeads((prev) => prev.filter((l) => l.id !== editingLead.id));
     setEditingLead(undefined);
@@ -87,6 +95,7 @@ export function CrmBoard({
       setMovingLeadId(null);
       throw error;
     }
+    await supabase.from("lead_activities").insert({ coach_id: coachId, lead_id: leadId, activity_type: "status_changed", note: `Status changed to ${LEAD_STAGES.find((item) => item.key === stage)?.label ?? stage}`, metadata: { from: lead.stage, to: stage } });
     setMovingLeadId(null);
     router.refresh();
   }
@@ -100,7 +109,7 @@ export function CrmBoard({
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok && response.status !== 409) throw new Error(body.error || "Failed to create client invitation");
-    await moveLead(editingLead.id, "signed");
+    await moveLead(editingLead.id, "won");
     setEditingLead(undefined);
     router.push("/clients");
   }
@@ -121,23 +130,26 @@ export function CrmBoard({
     router.refresh();
   }
 
+  const isClosed = (lead: Lead) => ["signed", "won", "lost", "spam_disqualified"].includes(lead.stage);
   const openPipelineValue = visibleLeads
-    .filter((lead) => lead.stage !== "signed")
+    .filter((lead) => !isClosed(lead))
     .reduce((total, lead) => total + (lead.value_cents ?? 0), 0);
 
   return (
     <>
       <div className="pipeline-toolbar">
         <div className="pipeline-summary">
-          <span><strong>{visibleLeads.filter((lead) => lead.stage !== "signed").length}</strong> open leads</span>
+          <span><strong>{visibleLeads.filter((lead) => !isClosed(lead)).length}</strong> open leads</span>
           <span><strong>${(openPipelineValue / 100).toLocaleString()}</strong> monthly pipeline</span>
-          <span><strong>{visibleLeads.filter((lead) => lead.stage === "signed").length}</strong> converted</span>
+          <span><strong>{visibleLeads.filter((lead) => lead.stage === "signed" || lead.stage === "won").length}</strong> converted</span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input className="form-input" aria-label="Search leads" placeholder="Search leads…" value={search} onChange={(event) => setSearch(event.target.value)} style={{ minWidth: 190 }} />
           <select className="form-input" aria-label="Filter by business" value={businessFilter} onChange={(event) => setBusinessFilter(event.target.value)} style={{ minWidth: 180 }}>
             <option value="all">All businesses</option>
             {businesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
           </select>
+          <select className="form-input" aria-label="Filter by source" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)} style={{ minWidth: 160 }}><option value="all">All sources</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select>
           <button className="btn btn-primary" onClick={() => setEditingLead(null)}>Add lead</button>
         </div>
       </div>
@@ -171,6 +183,7 @@ export function CrmBoard({
                   onClick={() => setEditingLead(lead)}
                 >
                   <div className="pipeline-card-name">{lead.name}</div>
+                  <a href={`/crm/${lead.id}`} onClick={(event) => event.stopPropagation()} className="sub" style={{ float: "right" }}>Details →</a>
                   {businessById.get(lead.business_id) && <div className="business-chip"><span style={{ background: businessById.get(lead.business_id)!.color }} />{businessById.get(lead.business_id)!.name}</div>}
                   <div className="pipeline-card-meta">
                     {[lead.service_interest, lead.source, lead.value_cents != null ? `$${lead.value_cents / 100}/mo` : null]

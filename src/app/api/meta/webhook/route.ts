@@ -1,10 +1,11 @@
-import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { decryptToken } from "@/lib/meta/crypto";
 import { fetchLead } from "@/lib/meta/client";
 import { logServerError } from "@/lib/log-server-error";
 import { sendEmail } from "@/lib/email/resend";
+import { mapWebsiteLead } from "@/lib/meta/lead-mapping";
+import { leadgenChanges, shouldProcessEvent, signatureIsValid } from "@/lib/meta/webhook-utils";
 
 export const runtime = "nodejs";
 
@@ -15,36 +16,19 @@ export async function GET(request: Request) {
   return new Response(valid ? (url.searchParams.get("hub.challenge") ?? "") : "Invalid verification token", { status: valid ? 200 : 403 });
 }
 
-function signatureIsValid(raw: string, signature: string | null) {
-  const secret = process.env.META_APP_SECRET;
-  if (!secret || !signature?.startsWith("sha256=")) return false;
-  const expected = Buffer.from(createHmac("sha256", secret).update(raw).digest("hex"));
-  const supplied = Buffer.from(signature.slice(7));
-  return expected.length === supplied.length && timingSafeEqual(expected, supplied);
-}
-
-function answerMap(fieldData: { name: string; values?: string[] }[] = []) {
-  return Object.fromEntries(fieldData.map((field) => [field.name, (field.values ?? []).join(", ")]));
-}
-
-function first(answers: Record<string, string>, keys: string[]) {
-  for (const key of keys) if (answers[key]?.trim()) return answers[key].trim();
-  return "";
-}
-
 function escapeHtml(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
 
-async function processLead(value: Record<string, unknown>) {
+export async function processLead(value: Record<string, unknown>) {
   const service = createServiceClient();
   const leadgenId = String(value.leadgen_id ?? "");
   const pageId = String(value.page_id ?? "");
   const formId = value.form_id ? String(value.form_id) : null;
   if (!leadgenId || !pageId) return;
 
-  const { data: existingEvent } = await service.from("meta_lead_webhook_events").select("id,status").eq("meta_leadgen_id", leadgenId).maybeSingle();
-  if (existingEvent?.status === "processed" || existingEvent?.status === "duplicate") return;
+  const { data: existingEvent } = await service.from("meta_lead_webhook_events").select("id,status,attempt_count").eq("meta_leadgen_id", leadgenId).maybeSingle();
+  if (!shouldProcessEvent(existingEvent?.status)) return;
 
   const { data: sources } = await service.from("meta_lead_sources").select("*").eq("meta_page_id", pageId).eq("enabled", true);
   const source = (sources ?? []).find((item) => item.meta_form_id === formId) ?? (sources ?? []).find((item) => !item.meta_form_id);
@@ -58,22 +42,23 @@ async function processLead(value: Record<string, unknown>) {
   try {
     if (!connection?.access_token_encrypted) throw new Error("Meta connection is unavailable");
     const metaLead = await fetchLead(decryptToken(connection.access_token_encrypted), leadgenId);
-    const answers = answerMap(metaLead.field_data);
-    const email = first(answers, ["email", "work_email"]);
-    const phone = first(answers, ["phone_number", "phone"]);
-    const fullName = first(answers, ["full_name", "name"]) || [answers.first_name, answers.last_name].filter(Boolean).join(" ") || email || phone || "New Meta lead";
-    const customAnswers = Object.entries(answers).filter(([key]) => !["email", "work_email", "phone_number", "phone", "full_name", "name", "first_name", "last_name"].includes(key));
+    const mapped = mapWebsiteLead(metaLead.field_data);
+    const { answers, ...mappedFields } = mapped;
+    const email = mapped.email ?? "";
+    const phone = mapped.phone ?? "";
+    const fullName = mapped.name;
+    const customAnswers = Object.entries(answers).filter(([key]) => !["email", "email_address", "work_email", "phone_number", "phone", "full_name", "name", "first_name", "last_name"].includes(key));
     const notes = customAnswers.length ? `Instant Form answers:\n${customAnswers.map(([key, val]) => `${key.replaceAll("_", " ")}: ${val}`).join("\n")}` : null;
     const details = { platform: "meta", page_id: pageId, page_name: source.page_name, form_id: formId, form_name: source.form_name, ad_id: metaLead.ad_id, ad_name: metaLead.ad_name, adset_id: metaLead.adset_id, adset_name: metaLead.adset_name, campaign_id: metaLead.campaign_id, campaign_name: metaLead.campaign_name, answers };
 
     const { data: duplicate } = (email || phone) ? await service.from("leads").select("id,external_id").eq("coach_id", source.coach_id).or([email ? `email.ilike.${email}` : "", phone ? `phone.eq.${phone}` : ""].filter(Boolean).join(",")).limit(1).maybeSingle() : { data: null };
     let crmLeadId: string;
     if (duplicate && !duplicate.external_id) {
-      const { error } = await service.from("leads").update({ business_id: source.business_id, external_source: "meta", external_id: leadgenId, source: "Meta Lead Ad", source_details: details, notes }).eq("id", duplicate.id);
+      const { error } = await service.from("leads").update({ ...mappedFields, business_id: source.business_id, external_source: "meta", external_id: leadgenId, source: "Meta Instant Form", source_details: details, notes, service_interest: mapped.project_type === "redesign" ? "Website redesign" : "New website", submitted_at: metaLead.created_time ?? new Date().toISOString(), consent_context: source.consent_context ?? {} }).eq("id", duplicate.id);
       if (error) throw error;
       crmLeadId = duplicate.id;
     } else {
-      const leadRecord = { coach_id: source.coach_id, business_id: source.business_id, external_source: "meta", external_id: leadgenId, name: fullName, email: email || null, phone: phone || null, source: "Meta Lead Ad", stage: "new", notes, source_details: details };
+      const leadRecord = { ...mappedFields, coach_id: source.coach_id, business_id: source.business_id, external_source: "meta", external_id: leadgenId, source: "Meta Instant Form", stage: "new", notes, service_interest: mapped.project_type === "redesign" ? "Website redesign" : "New website", source_details: details, submitted_at: metaLead.created_time ?? new Date().toISOString(), consent_context: source.consent_context ?? {} };
       const { data: existingLead } = await service.from("leads").select("id").eq("coach_id", source.coach_id).eq("external_source", "meta").eq("external_id", leadgenId).maybeSingle();
       const { data: savedLead, error } = existingLead
         ? await service.from("leads").update(leadRecord).eq("id", existingLead.id).select("id").single()
@@ -81,6 +66,7 @@ async function processLead(value: Record<string, unknown>) {
       if (error) throw error;
       crmLeadId = savedLead.id;
     }
+    await service.from("lead_activities").insert({ coach_id: source.coach_id, lead_id: crmLeadId, activity_type: "imported", note: "Imported from Meta Instant Form", metadata: { meta_lead_id: leadgenId, form_id: formId, page_id: pageId } });
     const [{ data: coach }, { data: business }, { data: preferences }] = await Promise.all([
       service.from("profiles").select("email").eq("id", source.coach_id).single(),
       service.from("businesses").select("name").eq("id", source.business_id).single(),
@@ -101,18 +87,21 @@ async function processLead(value: Record<string, unknown>) {
       await service.from("notification_deliveries").insert({ profile_id: source.coach_id, event_type: "new_meta_lead", channel: "email", payload: notificationPayload, status: result.sent ? "sent" : "failed", sent_at: result.sent ? new Date().toISOString() : null, failed_at: result.sent ? null : new Date().toISOString(), error: result.error ?? null, attempt_count: 1, idempotency_key: `new_meta_lead:${leadgenId}:email` });
     }
     await service.from("meta_lead_sources").update({ last_received_at: new Date().toISOString() }).eq("id", source.id);
-    await service.from("meta_lead_webhook_events").upsert({ ...baseEvent, coach_id: source.coach_id, source_id: source.id, status: duplicate ? "duplicate" : "processed", processed_at: new Date().toISOString(), error: null }, { onConflict: "meta_leadgen_id" });
+    await service.from("meta_lead_webhook_events").upsert({ ...baseEvent, coach_id: source.coach_id, source_id: source.id, lead_id: crmLeadId, status: duplicate ? "duplicate" : "processed", processed_at: new Date().toISOString(), provider_payload: metaLead, attempt_count: (existingEvent?.attempt_count ?? 0) + 1, last_attempt_at: new Date().toISOString(), next_retry_at: null, error: null, error_code: null }, { onConflict: "meta_leadgen_id" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown lead processing error";
-    await service.from("meta_lead_webhook_events").upsert({ ...baseEvent, coach_id: source.coach_id, source_id: source.id, status: "failed", error: message }, { onConflict: "meta_leadgen_id" });
+    const attempts = (existingEvent?.attempt_count ?? 0) + 1;
+    const retryMinutes = Math.min(60, 2 ** Math.min(attempts, 5));
+    await service.from("meta_lead_webhook_events").upsert({ ...baseEvent, coach_id: source.coach_id, source_id: source.id, status: "failed", error: message.slice(0, 500), error_code: error instanceof Error ? error.name : "LeadProcessingError", attempt_count: attempts, last_attempt_at: new Date().toISOString(), next_retry_at: attempts < 5 ? new Date(Date.now() + retryMinutes * 60_000).toISOString() : null }, { onConflict: "meta_leadgen_id" });
     await logServerError({ message }, `meta.webhook.process:${leadgenId}:${pageId}:${formId ?? "unknown"}`);
   }
 }
 
 export async function POST(request: Request) {
   const raw = await request.text();
-  if (!signatureIsValid(raw, request.headers.get("x-hub-signature-256"))) return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  const body = JSON.parse(raw);
-  for (const entry of body.entry ?? []) for (const change of entry.changes ?? []) if (change.field === "leadgen") await processLead(change.value ?? {});
+  if (!signatureIsValid(raw, request.headers.get("x-hub-signature-256"), process.env.META_APP_SECRET)) return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  let body: { entry?: { changes?: { field?: string; value?: Record<string, unknown> }[] }[] };
+  try { body = JSON.parse(raw); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+  for (const value of leadgenChanges(body)) await processLead(value);
   return NextResponse.json({ received: true });
 }

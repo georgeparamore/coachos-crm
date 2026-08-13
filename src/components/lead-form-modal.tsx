@@ -36,6 +36,12 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert, onCo
   const [fitScore, setFitScore] = useState(lead?.fit_score != null ? String(lead.fit_score) : "");
   const [notes, setNotes] = useState(lead?.notes ?? "");
   const [followUpAt, setFollowUpAt] = useState(toLocalDateTime(lead?.follow_up_at));
+  const [businessName, setBusinessName] = useState(lead?.business_name ?? "");
+  const [websiteUrl, setWebsiteUrl] = useState(lead?.website_url ?? "");
+  const [projectType, setProjectType] = useState<"new_website" | "redesign" | "other" | "">(lead?.project_type ?? "");
+  const [businessDescription, setBusinessDescription] = useState(lead?.business_description ?? "");
+  const [launchTimeframe, setLaunchTimeframe] = useState(lead?.launch_timeframe ?? "");
+  const [budgetSetAside, setBudgetSetAside] = useState(lead?.budget_set_aside ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { showError } = useErrorToast();
@@ -64,6 +70,8 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert, onCo
         fit_score: fitScore ? parseInt(fitScore, 10) : null,
         notes,
         follow_up_at: followUpAt ? new Date(followUpAt).toISOString() : null,
+        business_name: businessName, website_url: websiteUrl, project_type: projectType || null,
+        business_description: businessDescription, launch_timeframe: launchTimeframe, budget_set_aside: budgetSetAside,
       });
     } catch (err) {
       setError(getErrorMessage(err));
@@ -118,6 +126,9 @@ export function LeadFormModal({ lead, onClose, onSave, onDelete, onConvert, onCo
             <label className="form-label">Service or interest</label>
             <input className="form-input" placeholder="Custom website, coaching, ad management…" value={serviceInterest} onChange={(event) => setServiceInterest(event.target.value)} />
           </div>
+          <div className="form-grid"><label className="field"><span>Business name</span><input value={businessName} onChange={(e) => setBusinessName(e.target.value)} /></label><label className="field"><span>Website URL</span><input type="url" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} /></label></div>
+          <div className="form-grid"><label className="field"><span>Project type</span><select value={projectType} onChange={(e) => setProjectType(e.target.value as typeof projectType)}><option value="">Not specified</option><option value="new_website">New website</option><option value="redesign">Redesign</option><option value="other">Other</option></select></label><label className="field"><span>Budget set aside</span><input value={budgetSetAside} onChange={(e) => setBudgetSetAside(e.target.value)} /></label></div>
+          <div className="form-grid"><label className="field"><span>Desired launch timeframe</span><input value={launchTimeframe} onChange={(e) => setLaunchTimeframe(e.target.value)} /></label><label className="field"><span>What the business offers</span><input value={businessDescription} onChange={(e) => setBusinessDescription(e.target.value)} /></label></div>
           <div className="form-row">
             <label className="form-label">Name</label>
             <input className="form-input" required value={name} onChange={(e) => setName(e.target.value)} />

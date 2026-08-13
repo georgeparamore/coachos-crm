@@ -174,6 +174,17 @@ export async function fetchLead(accessToken: string, leadId: string): Promise<Me
   });
 }
 
+export async function fetchPageAccessToken(accessToken: string, pageId: string): Promise<string> {
+  const page = await graphFetch<{ access_token?: string }>(`/${pageId}`, { fields: "access_token", access_token: accessToken });
+  if (!page.access_token) throw new MetaApiError("Meta did not return a Page access token", 403);
+  return page.access_token;
+}
+
+export async function subscribePageToLeadgen(pageAccessToken: string, pageId: string): Promise<void> {
+  const result = await graphFetch<{ success?: boolean }>(`/${pageId}/subscribed_apps`, { subscribed_fields: "leadgen", access_token: pageAccessToken }, { method: "POST" });
+  if (!result.success) throw new MetaApiError("Meta did not confirm the Page leadgen subscription", 400, result);
+}
+
 export type MetaAdAccount = {
   id: string; // "act_1234567890"
   name: string;
