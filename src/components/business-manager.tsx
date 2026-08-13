@@ -6,7 +6,26 @@ import { createClient } from "@/lib/supabase/client";
 import { businessSlug, type Business } from "@/lib/businesses";
 import { useErrorToast } from "@/components/error-toast-provider";
 
-const COLORS = ["#7667e8", "#2b9a72", "#d1773f", "#3d7bb8", "#b34e72", "#697386"];
+const COLORS = ["#7667e8", "#2b9a72", "#d1773f", "#3d7bb8", "#b34e72", "#697386", "#d4a72c", "#2b8a9e"];
+
+function ColorStrip({ value, onChange, label }: { value: string; onChange: (color: string) => void; label: string }) {
+  return (
+    <div className="business-color-strip" role="radiogroup" aria-label={label}>
+      {COLORS.map((option) => (
+        <button
+          key={option}
+          type="button"
+          className={value === option ? "is-selected" : ""}
+          style={{ background: option }}
+          role="radio"
+          aria-checked={value === option}
+          aria-label={`Choose ${option}`}
+          onClick={() => onChange(option)}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function BusinessManager({ initialBusinesses, coachId }: { initialBusinesses: Business[]; coachId: string }) {
   const router = useRouter();
@@ -56,15 +75,30 @@ export function BusinessManager({ initialBusinesses, coachId }: { initialBusines
     } catch (error) { showError(error, "settings.business-rename"); }
   }
 
+  async function updateColor(business: Business, nextColor: string) {
+    if (nextColor === business.color) return;
+    const previousColor = business.color;
+    setBusinesses((items) => items.map((item) => item.id === business.id ? { ...item, color: nextColor } : item));
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("businesses").update({ color: nextColor }).eq("id", business.id);
+      if (error) throw error;
+      router.refresh();
+    } catch (error) {
+      setBusinesses((items) => items.map((item) => item.id === business.id ? { ...item, color: previousColor } : item));
+      showError(error, "settings.business-color");
+    }
+  }
+
   return (
     <div className="card">
       <div className="card-title">Businesses & brands</div>
       <p className="sub" style={{ marginBottom: 14 }}>Keep every opportunity in one CRM while preserving which business it belongs to.</p>
       {businesses.map((business) => (
-        <div className="list-row" key={business.id}>
-          <div className="list-row-left">
-            <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 99, background: business.color, flex: "0 0 auto" }} />
+        <div className="list-row business-manager-row" key={business.id}>
+          <div className="business-manager-identity">
             <div><div className="name">{business.name}</div><div className="sub">{business.is_default ? "Default for new leads" : "Separate lead pipeline available"}</div></div>
+            <ColorStrip value={business.color} onChange={(nextColor) => void updateColor(business, nextColor)} label={`Color for ${business.name}`} />
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             {!business.is_default && <button className="btn btn-sm" type="button" onClick={() => makeDefault(business.id)}>Make default</button>}
@@ -74,7 +108,7 @@ export function BusinessManager({ initialBusinesses, coachId }: { initialBusines
       ))}
       <form onSubmit={addBusiness} style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap", marginTop: 14 }}>
         <label className="field" style={{ flex: "1 1 210px" }}><span>New business</span><input required maxLength={80} value={name} onChange={(event) => setName(event.target.value)} placeholder="Website Services" /></label>
-        <label className="field"><span>Color</span><select value={color} onChange={(event) => setColor(event.target.value)}>{COLORS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+        <label className="field"><span>Color</span><ColorStrip value={color} onChange={setColor} label="Color for new business" /></label>
         <button className="btn btn-primary" disabled={saving}>{saving ? "Adding…" : "Add business"}</button>
       </form>
     </div>
