@@ -13,6 +13,8 @@ export function MetaLeadIntakeCard({ sources, businesses, health, webhookReady, 
   const router = useRouter();
   const { showError } = useErrorToast();
   const [saving, setSaving] = useState(false);
+  const [subscribingId, setSubscribingId] = useState<string | null>(null);
+  const [subscribedIds, setSubscribedIds] = useState<Set<string>>(() => new Set());
 
   async function submit(formData: FormData) {
     setSaving(true);
@@ -52,12 +54,15 @@ export function MetaLeadIntakeCard({ sources, businesses, health, webhookReady, 
   }
 
   async function subscribe(sourceId: string) {
+    setSubscribingId(sourceId);
     try {
       const res = await fetch("/api/meta/lead-source", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceId }) });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Meta could not subscribe this Page");
+      setSubscribedIds((current) => new Set(current).add(sourceId));
       router.refresh();
     } catch (error) { showError(error, "settings.meta-subscribe-page"); }
+    finally { setSubscribingId(null); }
   }
 
   return (
@@ -88,7 +93,7 @@ export function MetaLeadIntakeCard({ sources, businesses, health, webhookReady, 
       {sources.map((source) => (
         <div className="list-row" key={source.id}>
           <div><div className="name">{source.page_name || `Page ${source.meta_page_id}`}</div><div className="sub">{businesses.find((business) => business.id === source.business_id)?.name ?? "Business"} · {source.form_name || (source.meta_form_id ? `Form ${source.meta_form_id}` : "All Instant Forms")}{source.last_received_at ? ` · Last lead ${new Date(source.last_received_at).toLocaleString()}` : " · Waiting for first lead"}</div></div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button className="btn btn-sm" onClick={() => subscribe(source.id)}>Subscribe Page</button><button className="btn btn-sm" onClick={() => sendTest(source.id)}>Send test lead</button><button className="btn btn-sm" onClick={() => remove(source.id)}>Remove</button></div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button className="btn btn-sm" disabled={subscribingId === source.id || subscribedIds.has(source.id)} onClick={() => subscribe(source.id)}>{subscribingId === source.id ? "Subscribing…" : subscribedIds.has(source.id) ? "Page subscribed ✓" : "Subscribe Page"}</button><button className="btn btn-sm" onClick={() => sendTest(source.id)}>Send test lead</button><button className="btn btn-sm" onClick={() => remove(source.id)}>Remove</button></div>
         </div>
       ))}
 
