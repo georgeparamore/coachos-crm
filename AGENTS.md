@@ -33,3 +33,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
   `docs/architecture-decisions.md` — they record what's already been decided.
 - When it's unclear whether something should follow the new DJS CRM direction or the old
   build's behavior, stop and ask George rather than guessing from the legacy build.
+
+## Shared context — second brain
+
+Before working on this project, read `~/Projects/second-brain/projects/coachos.md`
+(create it if missing), plus any related `customers/*.md` and `decisions/*.md`.
+After finishing, update that file: what changed, what's open, any decision + why,
+dated `## YYYY-MM-DD`. Never commit secrets — note where they live instead.
+Also inherits `~/Projects/AGENTS.md`.
