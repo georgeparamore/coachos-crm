@@ -34,6 +34,7 @@ export function BusinessManager({ initialBusinesses, coachId }: { initialBusines
   const [name, setName] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function addBusiness(event: React.FormEvent) {
     event.preventDefault();
@@ -104,6 +105,20 @@ export function BusinessManager({ initialBusinesses, coachId }: { initialBusines
     } catch (error) { showError(error, "settings.school-branding"); }
   }
 
+  async function deleteBusiness(business: Business) {
+    const confirmed = window.confirm(`Delete ${business.name}?\n\nThis permanently removes the business or brand. Empty test businesses can be deleted; businesses with linked CRM data are protected.`);
+    if (!confirmed) return;
+    setDeletingId(business.id);
+    try {
+      const response = await fetch(`/api/businesses/${business.id}`, { method: "DELETE" });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Could not delete that business");
+      setBusinesses((items) => items.filter((item) => item.id !== business.id));
+      router.refresh();
+    } catch (error) { showError(error, "settings.business-delete"); }
+    finally { setDeletingId(null); }
+  }
+
   return (
     <div className="card">
       <div className="card-title">Businesses & brands</div>
@@ -114,11 +129,12 @@ export function BusinessManager({ initialBusinesses, coachId }: { initialBusines
             <div><div className="name">{business.name}</div><div className="sub">School: {business.portal_name || business.name} · /school/{business.slug}/login</div></div>
             <ColorStrip value={business.color} onChange={(nextColor) => void updateColor(business, nextColor)} label={`Color for ${business.name}`} />
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
             {!business.is_default && <button className="btn btn-sm" type="button" onClick={() => makeDefault(business.id)}>Make default</button>}
             <a className="btn btn-sm" href={`/school/${business.slug}/login`} target="_blank" rel="noreferrer">Open school</a>
             <button className="btn btn-sm" type="button" onClick={() => editSchool(business)}>School branding</button>
             <button className="btn btn-sm" type="button" onClick={() => rename(business)}>Rename</button>
+            {!business.is_default && <button className="btn btn-sm btn-danger" type="button" disabled={deletingId === business.id} onClick={() => deleteBusiness(business)}>{deletingId === business.id ? "Deleting…" : "Delete"}</button>}
           </div>
         </div>
       ))}
