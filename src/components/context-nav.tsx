@@ -24,6 +24,14 @@ export function ContextNav({ isClient, notifications = [] }: { isClient: boolean
           }
           return <Link className={active ? "active" : ""} href={item.href} key={item.href}>{item.label}</Link>;
         })}
+        {"moreItems" in section && section.moreItems && (
+          <details className="context-more">
+            <summary className={section.moreItems.some((item) => pathname === item.href) ? "active" : ""}>More <span aria-hidden="true">⌄</span></summary>
+            <div className="context-more-menu">
+              {section.moreItems.map((item) => <Link className={pathname === item.href ? "active" : ""} href={item.href} key={item.href}>{item.label}</Link>)}
+            </div>
+          </details>
+        )}
       </div>
       <NotificationCenter initialNotifications={notifications} />
     </nav>

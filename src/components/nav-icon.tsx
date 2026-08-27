@@ -173,6 +173,13 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M7.5 7.5 10 10M14 14l2.5 2.5M16.5 7.5 14 10M10 14l-2.5 2.5" />
     </>
   ),
+  "more-horizontal": (
+    <>
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+    </>
+  ),
 };
 
 export function NavIcon({ name }: { name: string }) {

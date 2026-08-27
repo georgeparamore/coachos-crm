@@ -1058,6 +1058,14 @@ body {
 .app .nav-item { margin: 1px 8px; padding: 9px 12px; border-left: 2px solid transparent; border-radius: 5px; color: #aaa7ad; }
 .app .nav-item:hover { background: rgba(255,255,255,.045); color: #f3f0ec; }
 .app .nav-item.active { border-left-color: var(--accent); background: rgba(255,255,255,.065); color: var(--accent); font-weight: 600; }
+.sidebar-more { margin-top: 8px; }
+.sidebar-more > summary { list-style: none; cursor: pointer; }
+.sidebar-more > summary::-webkit-details-marker { display: none; }
+.sidebar-more > summary span:nth-child(2) { flex: 1; }
+.sidebar-more-chevron { margin-left: auto; font-size: 14px; line-height: 1; transition: transform .16s ease; }
+.sidebar-more[open] .sidebar-more-chevron { transform: rotate(180deg); }
+.sidebar-more-items { margin-left: 14px; padding-left: 4px; border-left: 1px solid rgba(255,255,255,.1); }
+.sidebar-more-items .nav-item { font-size: 11px; }
 .app .sidebar-footer { border-color: rgba(255,255,255,.1); color: #e9e9ec; }
 .app .user-avatar { background: #25242a; color: var(--accent); }
 .app .user-plan { color: #77747b; }
@@ -1093,6 +1101,7 @@ body {
   background: rgba(232, 121, 46, 0.09);
   color: #c65e19;
 }
+[data-theme="light"] .app .sidebar-more-items { border-left-color: rgba(23,23,26,.1); }
 [data-theme="light"] .app .user-avatar {
   background: #ded8cf;
   color: #c65e19;
@@ -1145,6 +1154,14 @@ body {
 .context-nav-links a:hover { color: var(--text); }
 .context-nav-links a.active { color: var(--text); }
 .context-nav-links a.active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--accent); content: ""; }
+.context-more { position: relative; }
+.context-more > summary { position: relative; padding: 14px 0 13px; color: var(--text-3); cursor: pointer; font-size: 12px; font-weight: 520; list-style: none; white-space: nowrap; }
+.context-more > summary::-webkit-details-marker { display: none; }
+.context-more > summary:hover,.context-more > summary.active { color: var(--text); }
+.context-more-menu { position: absolute; top: 44px; right: 0; z-index: 30; display: grid; min-width: 170px; overflow: hidden; padding: 6px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.context-more-menu a { padding: 9px 10px; border-radius: 6px; }
+.context-more-menu a::after { display: none; }
+.context-more-menu a:hover,.context-more-menu a.active { background: var(--surface2); color: var(--text); }
 
 .app .page { width: 100%; max-width: 1320px; padding: 38px clamp(28px, 3.5vw, 54px) 64px; }
 .app .page-header { margin-bottom: 27px; }

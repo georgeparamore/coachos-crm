@@ -199,7 +199,6 @@ export default async function DashboardPage() {
     <div className={`${styles.dashboard} page`}>
       <div className={`${styles.hero} page-header`}>
         <div>
-          <div className={styles.eyebrow}>Business overview</div>
           <div className="page-title">Good morning, {firstName}.</div>
           <div className="page-sub" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span>{formattedDate}</span>
@@ -222,7 +221,6 @@ export default async function DashboardPage() {
 
       <div className={styles.sectionHeading}>
         <div>
-          <div className={styles.sectionEyebrow}>Today</div>
           <h2>What needs your attention</h2>
         </div>
       </div>
@@ -260,98 +258,61 @@ export default async function DashboardPage() {
         </PreviewCard>
       </div>
 
-      {businessData.length > 1 && (
-        <div className="card" style={{ marginTop: 18 }}>
-          <div className="card-title-row"><div className="card-title">Leads by business</div><Link href="/crm">Open combined pipeline →</Link></div>
-          <BarList data={businessData} formatValue={(value) => `${value} lead${value === 1 ? "" : "s"}`} total={allLeads.length} />
-        </div>
-      )}
-
-      <div className={styles.sectionHeading}>
-        <div>
-          <div className={styles.sectionEyebrow}>Performance</div>
-          <h2>Your business at a glance</h2>
-        </div>
+      <div className={styles.quickNumbers} aria-label="Business summary">
+        <Link href="/crm"><span>Open leads</span><strong>{openLeads}</strong></Link>
+        <Link href="/clients"><span>Active clients</span><strong>{activeClients}</strong></Link>
+        <Link href="/subscriptions"><span>Monthly revenue</span><strong>{formatCurrencyWhole(mrrCents)}</strong></Link>
       </div>
 
-      <div className="metrics">
-        <div className="metric">
-          <div className="metric-label">Active clients</div>
-          <div className="metric-value">{activeClients}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Monthly revenue</div>
-          <div className="metric-value">{formatCurrencyWhole(mrrCents)}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Open leads</div>
-          <div className="metric-value">{openLeads}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Course enrollments</div>
-          <div className="metric-value">{(enrollmentsData ?? []).length}</div>
-          <div className="metric-delta delta-neutral">Across active clients</div>
-        </div>
-      </div>
-
-      <div className={`${styles.insightsGrid} two-col`}>
-        <div className="card">
-          <div className="chart-card-header">
-            <div className="card-title" style={{ marginBottom: 0 }}>
-              New leads, last 7 days
+      <details className={styles.moreDetails}>
+        <summary><span><strong>Reports and business details</strong><small>Trends, revenue, invoices, contracts, and lead sources</small></span><b aria-hidden="true">⌄</b></summary>
+        <div className={styles.moreDetailsBody}>
+          {businessData.length > 1 && (
+            <div className="card">
+              <div className="card-title-row"><div className="card-title">Leads by business</div><Link href="/crm">Open combined pipeline →</Link></div>
+              <BarList data={businessData} formatValue={(value) => `${value} lead${value === 1 ? "" : "s"}`} total={allLeads.length} />
             </div>
-            <div className="chart-headline">{signupTrend.reduce((sum, d) => sum + d.value, 0)}</div>
+          )}
+
+          <div className={`${styles.insightsGrid} two-col`}>
+            <div className="card">
+              <div className="chart-card-header">
+                <div className="card-title" style={{ marginBottom: 0 }}>New leads, last 7 days</div>
+                <div className="chart-headline">{signupTrend.reduce((sum, d) => sum + d.value, 0)}</div>
+              </div>
+              {allLeads.length === 0 ? <div className="empty-state"><p>No leads yet — add some in the CRM to see this trend.</p></div> : <SeriesChart points={signupTrend} color="var(--chart-trend)" mode="bar" />}
+            </div>
+
+            <div className="card">
+              <div className="card-title">Lead sources</div>
+              {sourceData.length === 0 ? <div className="empty-state"><p>No leads yet.</p></div> : <BarList data={sourceData} formatValue={(n) => String(n)} total={allLeads.length} />}
+            </div>
           </div>
-          {allLeads.length === 0 ? (
-            <div className="empty-state">
-              <p>No leads yet — add some in the CRM to see this trend.</p>
-            </div>
-          ) : (
-            <SeriesChart points={signupTrend} color="var(--chart-trend)" mode="bar" />
-          )}
+
+          <div className={styles.toolsGrid}>
+            <PreviewCard title="Analytics" href="/analytics">
+              <MiniStat label="Win rate" value={`${winRate}%`} />
+              <MiniStat label="Open pipeline value" value={formatCurrencyWhole(openPipelineValue)} />
+              <MiniStat label="Total leads" value={String(allLeads.length)} />
+            </PreviewCard>
+
+            <PreviewCard title="Subscriptions" href="/subscriptions">
+              <MiniStat label="Monthly recurring revenue" value={formatCurrencyWhole(mrrCents)} />
+              <MiniStat label="Active subscribers" value={String(activeSubs.length)} />
+            </PreviewCard>
+
+            <PreviewCard title="Invoices" href="/invoices">
+              <MiniStat label="Outstanding" value={formatCurrencyWhole(outstandingCents)} />
+              <MiniStat label="Collected this month" value={formatCurrencyWhole(collectedThisMonthCents)} />
+            </PreviewCard>
+
+            <PreviewCard title="Contracts" href="/contracts">
+              <MiniStat label="Awaiting signature" value={String(pendingContracts)} />
+              <MiniStat label="Signed" value={String(signedContracts)} />
+            </PreviewCard>
+          </div>
         </div>
-
-        <div className="card">
-          <div className="card-title">Lead sources</div>
-          {sourceData.length === 0 ? (
-            <div className="empty-state">
-              <p>No leads yet.</p>
-            </div>
-          ) : (
-            <BarList data={sourceData} formatValue={(n) => String(n)} total={allLeads.length} />
-          )}
-        </div>
-      </div>
-
-      <div className={styles.sectionHeading}>
-        <div>
-          <div className={styles.sectionEyebrow}>Workspace</div>
-          <h2>Business tools</h2>
-        </div>
-      </div>
-
-      <div className={styles.toolsGrid}>
-        <PreviewCard title="Analytics" href="/analytics">
-          <MiniStat label="Win rate" value={`${winRate}%`} />
-          <MiniStat label="Open pipeline value" value={formatCurrencyWhole(openPipelineValue)} />
-          <MiniStat label="Total leads" value={String(allLeads.length)} />
-        </PreviewCard>
-
-        <PreviewCard title="Subscriptions" href="/subscriptions">
-          <MiniStat label="Monthly recurring revenue" value={formatCurrencyWhole(mrrCents)} />
-          <MiniStat label="Active subscribers" value={String(activeSubs.length)} />
-        </PreviewCard>
-
-        <PreviewCard title="Invoices" href="/invoices">
-          <MiniStat label="Outstanding" value={formatCurrencyWhole(outstandingCents)} />
-          <MiniStat label="Collected this month" value={formatCurrencyWhole(collectedThisMonthCents)} />
-        </PreviewCard>
-
-        <PreviewCard title="Contracts" href="/contracts">
-          <MiniStat label="Awaiting signature" value={String(pendingContracts)} />
-          <MiniStat label="Signed" value={String(signedContracts)} />
-        </PreviewCard>
-      </div>
+      </details>
     </div>
   );
 }

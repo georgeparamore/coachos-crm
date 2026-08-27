@@ -21,19 +21,6 @@
   line-height: 1.15;
 }
 
-.eyebrow,
-.sectionEyebrow {
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-}
-
-.eyebrow {
-  margin-bottom: 8px;
-}
-
 .dashboard :global(.page-sub) {
   margin-top: 8px;
   color: var(--text-2);
@@ -47,11 +34,27 @@
 }
 
 .sectionHeading h2 {
-  margin-top: 3px;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 630;
   letter-spacing: -0.025em;
 }
+
+.quickNumbers { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); overflow: hidden; margin-top: 18px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+.quickNumbers a { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; color: inherit; text-decoration: none; }
+.quickNumbers a + a { border-left: 1px solid var(--border); }
+.quickNumbers a:hover { background: var(--surface2); }
+.quickNumbers span { color: var(--text-3); font-size: 10px; }
+.quickNumbers strong { color: var(--text); font-family: Georgia,"Times New Roman",serif; font-size: 19px; font-weight: 600; }
+.moreDetails { overflow: hidden; margin-top: 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+.moreDetails > summary { display: flex; min-height: 72px; align-items: center; justify-content: space-between; gap: 20px; padding: 15px 19px; cursor: pointer; list-style: none; }
+.moreDetails > summary::-webkit-details-marker { display: none; }
+.moreDetails > summary:hover { background: var(--surface2); }
+.moreDetails > summary span { display: grid; gap: 4px; }
+.moreDetails > summary strong { color: var(--text); font-size: 12px; }
+.moreDetails > summary small { color: var(--text-3); font-size: 9px; }
+.moreDetails > summary b { display: grid; width: 26px; height: 26px; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--text-3); font-size: 14px; transition: transform .16s ease; }
+.moreDetails[open] > summary b { transform: rotate(180deg); }
+.moreDetailsBody { display: grid; gap: 16px; padding: 18px; border-top: 1px solid var(--border); }
 
 .focusGrid {
   display: grid;
@@ -267,6 +270,8 @@
 }
 
 @media (max-width: 520px) {
+  .quickNumbers { grid-template-columns: 1fr; }
+  .quickNumbers a + a { border-top: 1px solid var(--border); border-left: 0; }
   .dashboard :global(.metrics) {
     grid-template-columns: 1fr;
   }

@@ -11,27 +11,27 @@ export type NavSection = {
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    label: "Workspace",
+    label: "Main",
     items: [
       { href: "/dashboard", label: "Home", icon: "grid" },
       { href: "/clients", label: "People", icon: "users" },
       { href: "/courses", label: "Programs", icon: "play" },
-      { href: "/community", label: "Community", icon: "message" },
-      { href: "/ads", label: "Growth", icon: "bar-chart" },
       { href: "/calendar", label: "Calendar", icon: "calendar" },
     ],
   },
-  {
-    label: "Account",
-    items: [{ href: "/settings", label: "Settings", icon: "gear" }],
-  },
+];
+
+export const MORE_NAV_ITEMS: NavItem[] = [
+  { href: "/community", label: "Community", icon: "message" },
+  { href: "/ads", label: "Growth & money", icon: "bar-chart" },
+  { href: "/settings", label: "Settings", icon: "gear" },
 ];
 
 export const CONTEXT_NAV = [
   { paths: ["/clients", "/crm", "/calls"], label: "People", items: [{ href: "/clients", label: "Clients" }, { href: "/crm", label: "Leads" }, { href: "/calls", label: "Discovery calls" }] },
   { paths: ["/courses", "/students"], label: "Programs", items: [{ href: "/courses", label: "Courses" }, { href: "/students", label: "Progress" }] },
   { paths: ["/community"], label: "Community", items: [{ href: "/community", label: "Feed" }, { href: "/community/members", label: "Members" }] },
-  { paths: ["/ads", "/analytics", "/subscriptions", "/invoices", "/contracts", "/deals"], label: "Growth", items: [{ href: "/ads", label: "Ad performance" }, { href: "/analytics", label: "Analytics" }, { href: "/subscriptions", label: "Subscriptions" }, { href: "/invoices", label: "Invoices" }, { href: "/contracts", label: "Contracts" }, { href: "/deals", label: "Deals" }] },
+  { paths: ["/ads", "/analytics", "/subscriptions", "/invoices", "/contracts", "/deals"], label: "Growth & money", items: [{ href: "/ads", label: "Ads" }, { href: "/analytics", label: "Reports" }, { href: "/deals", label: "Deals" }], moreItems: [{ href: "/subscriptions", label: "Subscriptions" }, { href: "/invoices", label: "Invoices" }, { href: "/contracts", label: "Contracts" }] },
 ] as const;
 
 // Separate nav for client accounts — everything above is coach/admin

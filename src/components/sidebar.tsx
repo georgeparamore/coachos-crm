@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { NAV_SECTIONS, CLIENT_NAV_SECTIONS } from "@/components/nav-config";
+import { NAV_SECTIONS, CLIENT_NAV_SECTIONS, MORE_NAV_ITEMS } from "@/components/nav-config";
 import { NavIcon } from "@/components/nav-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
@@ -43,6 +43,7 @@ export function Sidebar({ userName, userInitials, userPlan, isAdmin, role, hasCl
       sections = [...sections, { label: "Learn", items: extraItems }];
     }
   }
+  const moreActive = role !== "client" && (MORE_NAV_ITEMS.some((item) => isActive(item.href)) || Boolean(isAdmin && pathname.startsWith("/admin/errors")));
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -74,14 +75,22 @@ export function Sidebar({ userName, userInitials, userPlan, isAdmin, role, hasCl
         </div>
       ))}
 
-      {isAdmin && (
-        <div>
-          <div className="nav-section">Admin</div>
-          <Link href="/admin/errors" className={`nav-item${pathname.startsWith("/admin/errors") ? " active" : ""}`}>
-            <NavIcon name="file-text" />
-            Error log
-          </Link>
-        </div>
+      {role !== "client" && (
+        <details className="sidebar-more" open={moreActive}>
+          <summary className={`nav-item${moreActive ? " active" : ""}`}>
+            <NavIcon name="more-horizontal" />
+            <span>More</span>
+            <span className="sidebar-more-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div className="sidebar-more-items">
+            {MORE_NAV_ITEMS.map((item) => (
+              <Link key={item.href} href={item.href} className={`nav-item${isActive(item.href) ? " active" : ""}`}>
+                <NavIcon name={item.icon} />{item.label}
+              </Link>
+            ))}
+            {isAdmin && <Link href="/admin/errors" className={`nav-item${pathname.startsWith("/admin/errors") ? " active" : ""}`}><NavIcon name="file-text" />Error log</Link>}
+          </div>
+        </details>
       )}
 
       <ThemeToggle />
