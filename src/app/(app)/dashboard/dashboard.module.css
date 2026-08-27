@@ -5,13 +5,38 @@
 }
 
 .hero {
+  position: relative;
   align-items: center;
+  overflow: hidden;
   margin-bottom: 32px;
-  padding: 27px 30px;
-  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
-  border-radius: 9px;
-  background: var(--surface);
-  box-shadow: none;
+  padding: 30px 32px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-radius: 14px;
+  background: linear-gradient(118deg, var(--surface) 0%, color-mix(in srgb, var(--accent-light) 62%, var(--surface)) 100%);
+  box-shadow: var(--shadow-md);
+  isolation: isolate;
+}
+
+.hero::before {
+  position: absolute;
+  inset: -90% -8% -120% 58%;
+  z-index: -1;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  filter: blur(2px);
+  transform: translateX(16%) rotate(-12deg);
+  animation: heroOrbit 680ms cubic-bezier(.16,1,.3,1) both;
+  content: "";
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes heroOrbit {
+  from { clip-path: inset(0 0 0 100% round 50%); transform: translateX(34%) rotate(-12deg); }
+  to { clip-path: inset(0 0 0 0 round 50%); transform: translateX(16%) rotate(-12deg); }
 }
 
 .dashboard :global(.page-title) {
@@ -39,10 +64,10 @@
   letter-spacing: -0.025em;
 }
 
-.quickNumbers { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); overflow: hidden; margin-top: 18px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
-.quickNumbers a { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; color: inherit; text-decoration: none; }
+.quickNumbers { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); overflow: hidden; margin-top: 18px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.quickNumbers a { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; color: inherit; text-decoration: none; transition: background-color 160ms ease, color 160ms ease; }
 .quickNumbers a + a { border-left: 1px solid var(--border); }
-.quickNumbers a:hover { background: var(--surface2); }
+.quickNumbers a:hover { background: var(--accent-light); }
 .quickNumbers span { color: var(--text-3); font-size: 10px; }
 .quickNumbers strong { color: var(--text); font-family: Georgia,"Times New Roman",serif; font-size: 19px; font-weight: 600; }
 .moreDetails { overflow: hidden; margin-top: 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
@@ -71,8 +96,8 @@
 
 .dashboard :global(.card) {
   border: 1px solid var(--border);
-  border-radius: 9px;
-  box-shadow: none;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
 }
 
 .focusGrid > :global(.card) {
@@ -94,9 +119,11 @@
   border-bottom: 1px solid var(--border);
   color: inherit;
   text-decoration: none;
+  transition: color 150ms ease, transform 180ms cubic-bezier(.16,1,.3,1);
 }
 
 .attentionRow:last-child { border-bottom: 0; }
+.attentionRow:hover { transform: translateX(3px); }
 .attentionRow:hover strong { color: var(--accent); }
 .attentionRow i { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
 .attentionRow i.high { background: var(--red-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red-bg) 75%, transparent); }

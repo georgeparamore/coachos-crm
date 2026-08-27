@@ -1007,6 +1007,9 @@ select.form-input {
   --purple-text: #48439c;
   --blue-bg: #e7f0fb;
   --blue-text: #315f91;
+  --shadow-sm: 0 8px 24px rgba(38, 35, 88, 0.06);
+  --shadow-md: 0 16px 42px rgba(38, 35, 88, 0.1);
+  --focus-ring: color-mix(in srgb, var(--accent) 24%, transparent);
   --amber-bg: #fff4dc;
   --amber-text: #865b09;
   --green-bg: #e9f1e4;
@@ -1033,6 +1036,9 @@ select.form-input {
   --purple-text: #c8c4ff;
   --blue-bg: #17283b;
   --blue-text: #acd0f5;
+  --shadow-sm: 0 10px 28px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 18px 48px rgba(0, 0, 0, 0.34);
+  --focus-ring: color-mix(in srgb, var(--accent) 32%, transparent);
   --amber-bg: #292116;
   --amber-text: #e8a94c;
   --green-bg: #17241b;
@@ -1046,8 +1052,24 @@ body {
   letter-spacing: -0.006em;
 }
 
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--text);
+}
+
+* {
+  scrollbar-color: color-mix(in srgb, var(--accent) 38%, var(--surface2)) transparent;
+  scrollbar-width: thin;
+}
+
+.app :is(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px var(--focus-ring);
+}
+
 .app .sidebar {
-  background: #0b0b0e;
+  background: linear-gradient(180deg, #101017 0%, #0b0b0e 62%, #12101c 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 .app .logo { padding: 24px 20px 21px; border-color: rgba(255, 255, 255, 0.1); }
@@ -1055,9 +1077,9 @@ body {
 .app .logo-name::first-letter { color: var(--accent); }
 .app .logo-sub { color: #77747b; }
 .app .nav-section { padding: 22px 20px 7px; color: #67646b; font-size: 9px; letter-spacing: 0.13em; }
-.app .nav-item { margin: 1px 8px; padding: 9px 12px; border-left: 2px solid transparent; border-radius: 5px; color: #aaa7ad; }
-.app .nav-item:hover { background: rgba(255,255,255,.045); color: #f3f0ec; }
-.app .nav-item.active { border-left-color: var(--accent); background: rgba(255,255,255,.065); color: var(--accent); font-weight: 600; }
+.app .nav-item { margin: 1px 8px; padding: 9px 12px; border-left: 2px solid transparent; border-radius: 7px; color: #aaa7ad; transition: background-color 160ms ease, color 160ms ease, transform 160ms cubic-bezier(.16,1,.3,1); }
+.app .nav-item:hover { background: rgba(255,255,255,.055); color: #f3f0ec; transform: translateX(2px); }
+.app .nav-item.active { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); color: #c8c4ff; font-weight: 600; }
 .sidebar-more { margin-top: 8px; }
 .sidebar-more > summary { list-style: none; cursor: pointer; }
 .sidebar-more > summary::-webkit-details-marker { display: none; }
@@ -1074,7 +1096,7 @@ body {
 .app .theme-toggle:hover { background: rgba(255,255,255,.05); color: #fff; }
 
 [data-theme="light"] .app .sidebar {
-  background: #eeeae3;
+  background: linear-gradient(180deg, #f0ede8 0%, #ebe8f1 100%);
   border-right-color: rgba(23, 23, 26, 0.12);
 }
 [data-theme="light"] .app .logo,
@@ -1174,14 +1196,15 @@ body {
 .app .pipeline-card {
   border: 1px solid var(--border);
   background: var(--surface);
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
 }
 .app .card { padding: 20px 22px; }
 .app .card-title { font-family: Georgia, "Times New Roman", serif; font-size: 15px; font-weight: 600; }
 .app .card-title-row a { color: var(--accent); text-decoration: none; }
 
-.app .btn { min-height: 34px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); font-weight: 580; }
-.app .btn:hover { border-color: var(--accent); background: var(--surface2); }
+.app .btn { min-height: 34px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--surface); font-weight: 580; transition: border-color 150ms ease, background-color 150ms ease, box-shadow 180ms ease, transform 180ms cubic-bezier(.16,1,.3,1); }
+.app .btn:hover { border-color: var(--accent); background: var(--surface2); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.app .btn:active { transform: translateY(0) scale(.985); }
 .app .btn-primary,
 .app .btn-accent { border-color: var(--accent); background: var(--accent); color: #fff; }
 .app .btn-primary:hover,
@@ -1199,7 +1222,8 @@ body {
 .app .form-input { min-height: 38px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
 .app .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent); }
 .settings-accordion-list { display: grid; gap: 10px; width: min(880px, 100%); }
-.settings-accordion { overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.settings-accordion { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-sm); transition: border-color 180ms ease, box-shadow 220ms ease; }
+.settings-accordion[open] { border-color: color-mix(in srgb, var(--accent) 24%, var(--border)); box-shadow: var(--shadow-md); }
 .settings-accordion > summary { display: flex; min-height: 78px; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 20px; cursor: pointer; list-style: none; }
 .settings-accordion > summary::-webkit-details-marker { display: none; }
 .settings-accordion > summary:hover { background: color-mix(in srgb, var(--accent) 3%, var(--surface)); }
@@ -1253,7 +1277,8 @@ body {
 .modal-actions { display: flex; gap: 8px; margin-top: 8px; }
 
 .quick-add-wrap { position: fixed; right: 26px; bottom: 24px; z-index: 90; }
-.quick-add-button { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 17px; border: 1px solid color-mix(in srgb, var(--accent) 78%, #000); border-radius: 999px; background: var(--accent); color: #fff; box-shadow: 0 14px 34px rgba(0,0,0,.24); cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
+.quick-add-button { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 17px; border: 1px solid color-mix(in srgb, var(--accent) 78%, #000); border-radius: 999px; background: var(--accent); color: #fff; box-shadow: 0 14px 34px rgba(38,35,88,.24); cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; transition: transform 180ms cubic-bezier(.16,1,.3,1), box-shadow 180ms ease; }
+.quick-add-button:hover { transform: translateY(-2px); box-shadow: 0 18px 42px rgba(38,35,88,.3); }
 .quick-add-button span { font-size: 19px; font-weight: 400; line-height: 1; transition: transform .18s ease; }
 .quick-add-button.is-open span { transform: rotate(45deg); }
 .quick-add-menu { position: absolute; right: 0; bottom: 54px; width: 270px; padding: 9px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); box-shadow: 0 20px 55px rgba(0,0,0,.3); }
@@ -1261,6 +1286,17 @@ body {
 .quick-add-menu button { display: flex; width: 100%; align-items: center; gap: 11px; padding: 10px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
 .quick-add-menu button:hover { background: var(--surface2); }
 .quick-add-menu button > span { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--accent); font-size: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .app *,
+  .app *::before,
+  .app *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
 .quick-add-menu button div { display: grid; gap: 2px; }
 .quick-add-menu strong { font-size: 12px; font-weight: 650; }
 .quick-add-menu small { color: var(--text-3); font-size: 10px; }
