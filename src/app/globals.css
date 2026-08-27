@@ -1001,12 +1001,12 @@ select.form-input {
   --text: #17171a;
   --text-2: #67635e;
   --text-3: #96918a;
-  --accent: #e8792e;
-  --accent-light: #fff0e5;
-  --purple-bg: #fff0e5;
-  --purple-text: #a8480c;
-  --blue-bg: #fff0e5;
-  --blue-text: #a8480c;
+  --accent: #5b55b9;
+  --accent-light: #ebeafd;
+  --purple-bg: #ebeafd;
+  --purple-text: #48439c;
+  --blue-bg: #e7f0fb;
+  --blue-text: #315f91;
   --amber-bg: #fff4dc;
   --amber-text: #865b09;
   --green-bg: #e9f1e4;
@@ -1027,12 +1027,12 @@ select.form-input {
   --text: #e9e9ec;
   --text-2: #a8a6aa;
   --text-3: #747279;
-  --accent: #fb923b;
-  --accent-light: #2a1b12;
-  --purple-bg: #2a1b12;
-  --purple-text: #fb923b;
-  --blue-bg: #2a1b12;
-  --blue-text: #fb923b;
+  --accent: #918bea;
+  --accent-light: #24223f;
+  --purple-bg: #24223f;
+  --purple-text: #c8c4ff;
+  --blue-bg: #17283b;
+  --blue-text: #acd0f5;
   --amber-bg: #292116;
   --amber-text: #e8a94c;
   --green-bg: #17241b;
@@ -1098,13 +1098,13 @@ body {
   color: #17171a;
 }
 [data-theme="light"] .app .nav-item.active {
-  background: rgba(232, 121, 46, 0.09);
-  color: #c65e19;
+  background: #e5e4f8;
+  color: #48439c;
 }
 [data-theme="light"] .app .sidebar-more-items { border-left-color: rgba(23,23,26,.1); }
 [data-theme="light"] .app .user-avatar {
   background: #ded8cf;
-  color: #c65e19;
+  color: #514ba8;
 }
 [data-theme="light"] .app .theme-toggle {
   border-color: rgba(23, 23, 26, 0.11);
@@ -1183,9 +1183,9 @@ body {
 .app .btn { min-height: 34px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); font-weight: 580; }
 .app .btn:hover { border-color: var(--accent); background: var(--surface2); }
 .app .btn-primary,
-.app .btn-accent { border-color: var(--accent); background: var(--accent); color: #0d0d10; }
+.app .btn-accent { border-color: var(--accent); background: var(--accent); color: #fff; }
 .app .btn-primary:hover,
-.app .btn-accent:hover { border-color: #ffab64; background: #ff9e4c; color: #0d0d10; opacity: 1; }
+.app .btn-accent:hover { border-color: color-mix(in srgb, var(--accent) 88%, #000); background: color-mix(in srgb, var(--accent) 88%, #000); color: #fff; opacity: 1; }
 
 .app .metrics { gap: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
 .app .metric { padding: 19px 21px; border-radius: 0; background: transparent; }
@@ -1253,7 +1253,7 @@ body {
 .modal-actions { display: flex; gap: 8px; margin-top: 8px; }
 
 .quick-add-wrap { position: fixed; right: 26px; bottom: 24px; z-index: 90; }
-.quick-add-button { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 17px; border: 1px solid color-mix(in srgb, var(--accent) 75%, #000); border-radius: 999px; background: var(--accent); color: #160d07; box-shadow: 0 14px 34px rgba(0,0,0,.24); cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
+.quick-add-button { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 17px; border: 1px solid color-mix(in srgb, var(--accent) 78%, #000); border-radius: 999px; background: var(--accent); color: #fff; box-shadow: 0 14px 34px rgba(0,0,0,.24); cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
 .quick-add-button span { font-size: 19px; font-weight: 400; line-height: 1; transition: transform .18s ease; }
 .quick-add-button.is-open span { transform: rotate(45deg); }
 .quick-add-menu { position: absolute; right: 0; bottom: 54px; width: 270px; padding: 9px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); box-shadow: 0 20px 55px rgba(0,0,0,.3); }
