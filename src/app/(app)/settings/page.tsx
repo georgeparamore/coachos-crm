@@ -7,6 +7,7 @@ import { MetaAdAccountPicker } from "@/components/meta-ad-account-picker";
 import { MetaLeadIntakeCard } from "@/components/meta-lead-intake-card";
 import { logServerError } from "@/lib/log-server-error";
 import { BusinessManager } from "@/components/business-manager";
+import { ZoomDiscoveryIntegration } from "@/components/zoom-discovery-integration";
 import type { Business } from "@/lib/businesses";
 
 const META_ERROR_MESSAGES: Record<string, string> = {
@@ -34,6 +35,7 @@ export default async function SettingsPage({
     .eq("id", user!.id)
     .single();
   const { data: businesses } = await supabase.from("businesses").select("*").eq("coach_id", user!.id).order("is_default", { ascending: false }).order("name");
+  const { data: zoomDiscoveryIntegration } = await supabase.from("discovery_call_integrations").select("id,business_id,zoom_account_id,host_email,enabled").eq("coach_id", user!.id).maybeSingle();
 
   if (error) await logServerError(error, "settings.load", { userId: user!.id, userEmail: user!.email });
 
@@ -140,6 +142,7 @@ export default async function SettingsPage({
 
           {metaConnection && <MetaAdAccountPicker accounts={metaAdAccounts} />}
           {metaConnection && <MetaLeadIntakeCard sources={metaLeadSources} businesses={(businesses as Business[]) ?? []} health={metaLeadHealth} webhookReady={Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN && process.env.META_APP_SECRET)} verifyToken={process.env.META_WEBHOOK_VERIFY_TOKEN ?? null} />}
+          <ZoomDiscoveryIntegration businesses={(businesses as Business[]) ?? []} integration={zoomDiscoveryIntegration} credentialsReady={Boolean(process.env.ZOOM_ACCOUNT_ID && process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET && process.env.ZOOM_WEBHOOK_SECRET_TOKEN && process.env.OPENAI_API_KEY)} />
 
           <div className="card">
             <div className="card-title">Platform status</div>

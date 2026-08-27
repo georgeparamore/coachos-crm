@@ -10,9 +10,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
   const { leadId } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const [{ data: lead }, { data: activities }] = await Promise.all([
+  const [{ data: lead }, { data: activities }, { data: discoveryCalls }] = await Promise.all([
     supabase.from("leads").select("*, businesses(name,color)").eq("id", leadId).eq("coach_id", user!.id).maybeSingle(),
     supabase.from("lead_activities").select("id,activity_type,note,metadata,occurred_at").eq("lead_id", leadId).eq("coach_id", user!.id).order("occurred_at", { ascending: false }),
+    supabase.from("discovery_calls").select("id,topic,status,started_at,created_at").eq("lead_id", leadId).eq("coach_id", user!.id).order("created_at", { ascending: false }),
   ]);
   if (!lead) notFound();
   const row = lead as Lead & { businesses?: { name: string; color: string } };
@@ -28,6 +29,6 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
       </div></div>
       <div className="card"><div className="card-title">Qualification notes</div><p className="page-sub">{value(row.business_description)}</p>{row.notes && <pre className="lead-answer-block">{row.notes}</pre>}</div>
       <div className="card"><div className="card-title">Meta provenance</div><div className="lead-detail-grid"><div><span>Lead ID</span><strong>{value(row.external_id)}</strong></div><div><span>Form</span><strong>{value(details.form_name)}</strong></div><div><span>Page</span><strong>{value(details.page_name)}</strong></div><div><span>Campaign</span><strong>{value(details.campaign_name)}</strong></div><div><span>Ad set</span><strong>{value(details.adset_name)}</strong></div><div><span>Ad</span><strong>{value(details.ad_name)}</strong></div></div></div>
-    </div><aside><div className="card"><div className="card-title">Activity</div>{(activities ?? []).length ? (activities ?? []).map((activity) => <div className="lead-activity" key={activity.id}><span>{activity.activity_type.replaceAll("_", " ")}</span><strong>{activity.note || "Activity recorded"}</strong><small>{new Date(activity.occurred_at).toLocaleString()}</small></div>) : <p className="sub">No activity yet.</p>}</div></aside></div>
+    </div><aside>{(discoveryCalls ?? []).length > 0 && <div className="card"><div className="card-title">Discovery calls</div>{(discoveryCalls ?? []).map((call) => <Link href={`/calls/${call.id}`} className="lead-activity" key={call.id}><span>{call.status === "completed" ? "Brief ready" : call.status}</span><strong>{call.topic}</strong><small>{new Date(call.started_at || call.created_at).toLocaleString()}</small></Link>)}</div>}<div className="card"><div className="card-title">Activity</div>{(activities ?? []).length ? (activities ?? []).map((activity) => <div className="lead-activity" key={activity.id}><span>{activity.activity_type.replaceAll("_", " ")}</span><strong>{activity.note || "Activity recorded"}</strong><small>{new Date(activity.occurred_at).toLocaleString()}</small></div>) : <p className="sub">No activity yet.</p>}</div></aside></div>
   </div>;
 }

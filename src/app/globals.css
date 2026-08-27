@@ -3057,6 +3057,99 @@ body {
   width: 100%;
   max-width: 380px;
 }
+
+/* Discovery calls — recording inbox and build-ready AI brief */
+.call-list {
+  display: grid;
+  gap: 10px;
+}
+.call-list-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+.call-list-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--text-3);
+}
+.call-list-main { min-width: 0; }
+.call-list-title {
+  font-size: 16px;
+  font-weight: 650;
+  margin-bottom: 4px;
+}
+.call-list-main p {
+  margin: 10px 0 0;
+  color: var(--text-2);
+  line-height: 1.55;
+  max-width: 760px;
+}
+.call-list-meta {
+  min-width: 165px;
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 9px;
+}
+.empty-call-state {
+  text-align: center;
+  padding: 54px 24px;
+}
+.empty-call-state p { margin: 8px auto 18px; }
+.brief-hero {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--accent-light) 160%);
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+.brief-hero h2 {
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.25;
+  margin: 0 0 10px;
+}
+.brief-hero p { color: var(--text-2); line-height: 1.65; margin: 0; }
+.brief-hero .brief-build-direction {
+  color: var(--text);
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 25px;
+  line-height: 1.32;
+  margin-bottom: 10px;
+}
+.brief-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 26px 32px;
+}
+.brief-section h3 {
+  font-size: 13px;
+  margin: 0 0 9px;
+}
+.brief-section ul { margin: 0; padding-left: 18px; }
+.brief-section li { color: var(--text-2); line-height: 1.5; margin-bottom: 5px; }
+.brief-vision { margin-top: 18px; }
+.brief-vision span { color: var(--text-3); font-size: 12px; }
+.brief-vision p { margin: 5px 0 0; line-height: 1.6; }
+.one-column { grid-template-columns: 1fr; }
+.transcript-card summary { cursor: pointer; font-weight: 650; }
+.transcript-card pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  color: var(--text-2);
+  line-height: 1.65;
+  margin: 18px 0 0;
+  max-height: 620px;
+  overflow-y: auto;
+}
+@media (max-width: 720px) {
+  .call-list-card { align-items: flex-start; flex-direction: column; }
+  .call-list-meta { align-items: flex-start; min-width: 0; }
+  .brief-grid { grid-template-columns: 1fr; }
+}
 .auth-field-hint {
   font-size: 12px;
   color: var(--text-3);
