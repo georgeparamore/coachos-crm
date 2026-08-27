@@ -14,6 +14,7 @@ import { logServerError } from "@/lib/log-server-error";
 import { BarList } from "@/components/charts/bar-list";
 import { SeriesChart } from "@/components/charts/series-chart";
 import { OnboardingChecklist, type OnboardingStep } from "@/components/onboarding-checklist";
+import { DailyVoiceBriefing } from "@/components/daily-voice-briefing";
 import styles from "./dashboard.module.css";
 
 function dayLabel(date: Date) {
@@ -157,6 +158,15 @@ export default async function DashboardPage() {
   const signedContracts = allContracts.filter((c) => c.status === "signed").length;
 
   const formattedDate = formatDateInZone(now, timezone);
+  const briefingAppointments = events.slice(0, 3).map((event) => ({
+    title: event.title,
+    detail: new Date(event.start_time).toLocaleTimeString(undefined, {
+      timeZone: timezone,
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+  }));
+  const briefingPriorities = attentionItems.slice(0, 3).map((item) => ({ title: item.title, detail: item.detail }));
 
   // New leads per day, last 7 days
   const days: Date[] = [];
@@ -206,9 +216,17 @@ export default async function DashboardPage() {
             <LiveClock timezone={timezone} />
           </div>
         </div>
-        <Link className="btn btn-primary" href="/crm">
-          Add a lead <span aria-hidden="true">+</span>
-        </Link>
+        <div className={styles.heroActions}>
+          <DailyVoiceBriefing
+            appointments={briefingAppointments}
+            firstName={firstName}
+            formattedDate={formattedDate}
+            priorities={briefingPriorities}
+          />
+          <Link className="btn btn-primary" href="/crm">
+            Add a lead <span aria-hidden="true">+</span>
+          </Link>
+        </div>
       </div>
 
       <DailyCheckin firstName={firstName} todayEventCount={events.length} newLeadCount={newLeadCount} />

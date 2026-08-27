@@ -34,6 +34,12 @@
   z-index: 1;
 }
 
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
 @keyframes heroOrbit {
   from { clip-path: inset(0 0 0 100% round 50%); transform: translateX(34%) rotate(-12deg); }
   to { clip-path: inset(0 0 0 0 round 50%); transform: translateX(16%) rotate(-12deg); }
@@ -289,6 +295,12 @@
     padding: 22px;
   }
 
+  .heroActions {
+    width: 100%;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
   .focusGrid,
   .toolsGrid,
   .dashboard :global(.two-col) {
@@ -297,6 +309,8 @@
 }
 
 @media (max-width: 520px) {
+  .heroActions { align-items: stretch; flex-direction: column; }
+  .heroActions :global(.btn) { justify-content: center; }
   .quickNumbers { grid-template-columns: 1fr; }
   .quickNumbers a + a { border-top: 1px solid var(--border); border-left: 0; }
   .dashboard :global(.metrics) {
