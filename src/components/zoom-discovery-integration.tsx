@@ -7,7 +7,7 @@ import { useErrorToast } from "@/components/error-toast-provider";
 
 type Integration = { id: string; business_id: string; zoom_account_id: string; host_email: string | null; enabled: boolean };
 
-export function ZoomDiscoveryIntegration({ businesses, integration, credentialsReady }: { businesses: Business[]; integration: Integration | null; credentialsReady: boolean }) {
+export function ZoomDiscoveryIntegration({ businesses, integration, credentialsReady, embedded = false }: { businesses: Business[]; integration: Integration | null; credentialsReady: boolean; embedded?: boolean }) {
   const router = useRouter();
   const { showError } = useErrorToast();
   const [saving, setSaving] = useState(false);
@@ -33,11 +33,11 @@ export function ZoomDiscoveryIntegration({ businesses, integration, credentialsR
 
   const ready = Boolean(integration?.enabled && credentialsReady);
   return (
-    <div className="card">
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
+    <div className={embedded ? "" : "card"}>
+      {!embedded && <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
         <div><div className="card-title">Zoom discovery calls</div><p className="sub">Automatically turn completed Zoom recordings into transcripts and build-ready project briefs.</p></div>
         <span className={`badge ${ready ? "badge-green" : "badge-amber"}`}>{ready ? "Ready" : "Setup needed"}</span>
-      </div>
+      </div>}
       <div className="notes-box zoom-webhook-box">
         <strong>Webhook URL</strong>
         <code>https://coachos-drab.vercel.app/api/zoom/webhook</code>

@@ -9,6 +9,22 @@ import { logServerError } from "@/lib/log-server-error";
 import { BusinessManager } from "@/components/business-manager";
 import { ZoomDiscoveryIntegration } from "@/components/zoom-discovery-integration";
 import type { Business } from "@/lib/businesses";
+import type { ReactNode } from "react";
+
+function SettingsSection({ title, description, status, statusTone = "neutral", children }: { title: string; description: string; status?: string; statusTone?: "green" | "amber" | "neutral"; children: ReactNode }) {
+  return (
+    <details className="settings-accordion">
+      <summary>
+        <span className="settings-accordion-copy"><strong>{title}</strong><small>{description}</small></span>
+        <span className="settings-accordion-meta">
+          {status && <span className={`badge ${statusTone === "green" ? "badge-green" : statusTone === "amber" ? "badge-amber" : ""}`}>{status}</span>}
+          <span className="settings-accordion-chevron" aria-hidden="true">⌄</span>
+        </span>
+      </summary>
+      <div className="settings-accordion-body">{children}</div>
+    </details>
+  );
+}
 
 const META_ERROR_MESSAGES: Record<string, string> = {
   declined: "Meta connection was cancelled.",
@@ -79,6 +95,8 @@ export default async function SettingsPage({
     { name: "Email (SMTP)", sub: "Automated client notifications", envVar: "SMTP settings" },
     { name: "Supabase", sub: "Database, auth & user accounts", envVar: "NEXT_PUBLIC_SUPABASE_URL" },
   ];
+  const businessList = (businesses as Business[]) ?? [];
+  const zoomReady = Boolean(zoomDiscoveryIntegration?.enabled && process.env.ZOOM_ACCOUNT_ID && process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET && process.env.ZOOM_WEBHOOK_SECRET_TOKEN && process.env.OPENAI_API_KEY);
 
   return (
     <div className="page">
@@ -104,48 +122,47 @@ export default async function SettingsPage({
         </div>
       )}
 
-      <div className="two-col">
-        <div>
-          <div className="card">
-            <div className="card-title">Business profile</div>
+      <div className="settings-accordion-list">
+        <SettingsSection title="Your account" description="Name, email, and time zone">
+          <div className="settings-form-width">
             <BusinessProfileForm
               fullName={profile?.full_name ?? ""}
               email={profile?.email ?? user!.email ?? ""}
               timezone={profile?.timezone ?? "UTC"}
             />
           </div>
-          <BusinessManager initialBusinesses={(businesses as Business[]) ?? []} coachId={user!.id} />
-        </div>
+        </SettingsSection>
 
-        <div>
-          <div className="card">
-            <div className="card-title">Integrations</div>
+        <SettingsSection title="Businesses & brands" description="Names, school branding, colors, and business separation" status={`${businessList.length} ${businessList.length === 1 ? "business" : "businesses"}`}>
+          <BusinessManager initialBusinesses={businessList} coachId={user!.id} embedded />
+        </SettingsSection>
+
+        <SettingsSection title="Meta Ads & lead forms" description="Facebook and Instagram ads, accounts, and incoming leads" status={metaConnection ? "Connected" : "Not connected"} statusTone={metaConnection ? "green" : "amber"}>
+          <div className="settings-accordion-stack">
             <MetaConnectionRow
               connected={Boolean(metaConnection)}
               adAccountName={metaAdAccountName}
               metaAppId={process.env.META_APP_ID ?? null}
             />
-            {integrations.map((integration) => (
-              <div className="list-row" key={integration.name}>
-                <div className="list-row-left">
-                  <div>
-                    <div className="name">{integration.name}</div>
-                    <div className="sub">{integration.sub}</div>
-                  </div>
-                </div>
-                <span className="badge badge-amber">
-                  {integration.name === "Supabase" ? "Connected" : "Connect when live"}
-                </span>
-              </div>
-            ))}
+            {metaConnection && <MetaAdAccountPicker accounts={metaAdAccounts} />}
+            {metaConnection && <MetaLeadIntakeCard sources={metaLeadSources} businesses={businessList} health={metaLeadHealth} webhookReady={Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN && process.env.META_APP_SECRET)} verifyToken={process.env.META_WEBHOOK_VERIFY_TOKEN ?? null} />}
           </div>
+        </SettingsSection>
 
-          {metaConnection && <MetaAdAccountPicker accounts={metaAdAccounts} />}
-          {metaConnection && <MetaLeadIntakeCard sources={metaLeadSources} businesses={(businesses as Business[]) ?? []} health={metaLeadHealth} webhookReady={Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN && process.env.META_APP_SECRET)} verifyToken={process.env.META_WEBHOOK_VERIFY_TOKEN ?? null} />}
-          <ZoomDiscoveryIntegration businesses={(businesses as Business[]) ?? []} integration={zoomDiscoveryIntegration} credentialsReady={Boolean(process.env.ZOOM_ACCOUNT_ID && process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET && process.env.ZOOM_WEBHOOK_SECRET_TOKEN && process.env.OPENAI_API_KEY)} />
+        <SettingsSection title="Discovery call automation" description="Zoom recordings, transcripts, and AI project briefs" status={zoomReady ? "Ready" : "Setup needed"} statusTone={zoomReady ? "green" : "amber"}>
+          <ZoomDiscoveryIntegration businesses={businessList} integration={zoomDiscoveryIntegration} credentialsReady={Boolean(process.env.ZOOM_ACCOUNT_ID && process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET && process.env.ZOOM_WEBHOOK_SECRET_TOKEN && process.env.OPENAI_API_KEY)} embedded />
+        </SettingsSection>
 
-          <div className="card">
-            <div className="card-title">Platform status</div>
+        <SettingsSection title="Other connections" description="Payments, video hosting, email, and database services">
+          {integrations.map((integration) => (
+            <div className="list-row" key={integration.name}>
+              <div className="list-row-left"><div><div className="name">{integration.name}</div><div className="sub">{integration.sub}</div></div></div>
+              <span className={`badge ${integration.name === "Supabase" ? "badge-green" : "badge-amber"}`}>{integration.name === "Supabase" ? "Connected" : "Connect when needed"}</span>
+            </div>
+          ))}
+        </SettingsSection>
+
+        <SettingsSection title="System status" description="Technical platform readiness and infrastructure">
             <div className="list-row">
               <div className="sub">Mode</div>
               <span className="badge badge-green">Phase 1 — CRM live</span>
@@ -162,8 +179,7 @@ export default async function SettingsPage({
               <div className="sub">Video hosting</div>
               <span className="badge badge-amber">Not connected</span>
             </div>
-          </div>
-        </div>
+        </SettingsSection>
       </div>
     </div>
   );

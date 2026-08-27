@@ -1181,6 +1181,24 @@ body {
 .app .table tr:hover td { background: color-mix(in srgb, var(--accent) 4%, var(--surface)); }
 .app .form-input { min-height: 38px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
 .app .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent); }
+.settings-accordion-list { display: grid; gap: 10px; width: min(880px, 100%); }
+.settings-accordion { overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.settings-accordion > summary { display: flex; min-height: 78px; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 20px; cursor: pointer; list-style: none; }
+.settings-accordion > summary::-webkit-details-marker { display: none; }
+.settings-accordion > summary:hover { background: color-mix(in srgb, var(--accent) 3%, var(--surface)); }
+.settings-accordion > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.settings-accordion-copy { display: grid; gap: 5px; min-width: 0; }
+.settings-accordion-copy strong { color: var(--text); font-family: Georgia, "Times New Roman", serif; font-size: 15px; font-weight: 600; }
+.settings-accordion-copy small { color: var(--text-3); font-size: 10px; line-height: 1.45; }
+.settings-accordion-meta { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.settings-accordion-chevron { display: grid; width: 26px; height: 26px; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--text-2); font-size: 16px; line-height: 1; transform: rotate(0deg); transition: transform .16s ease; }
+.settings-accordion[open] .settings-accordion-chevron { transform: rotate(180deg); }
+.settings-accordion-body { padding: 4px 20px 22px; border-top: 1px solid var(--border); }
+.settings-form-width { max-width: 620px; padding-top: 18px; }
+.settings-accordion-stack { display: grid; gap: 12px; padding-top: 16px; }
+.settings-accordion-stack > .card { margin: 0; }
+.settings-accordion-body > .list-row:first-child { border-top: 0; }
+@media(max-width:620px){.settings-accordion>summary{min-height:70px;padding:14px 15px}.settings-accordion-body{padding:4px 15px 18px}.settings-accordion-copy small{max-width:230px}.settings-accordion-meta .badge{display:none}}
 .zoom-webhook-box { display: grid; gap: 5px; margin: 16px 0 20px; }
 .zoom-webhook-box code { overflow-wrap: anywhere; color: var(--text-2); font-size: 11px; }
 .zoom-setup-form { display: grid; gap: 18px; max-width: 620px; }

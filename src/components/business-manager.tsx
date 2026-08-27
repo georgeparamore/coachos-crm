@@ -27,7 +27,7 @@ function ColorStrip({ value, onChange, label }: { value: string; onChange: (colo
   );
 }
 
-export function BusinessManager({ initialBusinesses, coachId }: { initialBusinesses: Business[]; coachId: string }) {
+export function BusinessManager({ initialBusinesses, coachId, embedded = false }: { initialBusinesses: Business[]; coachId: string; embedded?: boolean }) {
   const router = useRouter();
   const { showError } = useErrorToast();
   const [businesses, setBusinesses] = useState(initialBusinesses);
@@ -120,9 +120,8 @@ export function BusinessManager({ initialBusinesses, coachId }: { initialBusines
   }
 
   return (
-    <div className="card">
-      <div className="card-title">Businesses & brands</div>
-      <p className="sub" style={{ marginBottom: 14 }}>Keep every opportunity in one CRM while preserving which business it belongs to.</p>
+    <div className={embedded ? "" : "card"}>
+      {!embedded && <><div className="card-title">Businesses & brands</div><p className="sub" style={{ marginBottom: 14 }}>Keep every opportunity in one CRM while preserving which business it belongs to.</p></>}
       {businesses.map((business) => (
         <div className="list-row business-manager-row" key={business.id}>
           <div className="business-manager-identity">
