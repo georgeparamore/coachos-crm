@@ -51,4 +51,3 @@ export const DISCOVERY_CALL_STATUS_LABELS: Record<DiscoveryCallStatus, string> =
   completed: "Ready",
   failed: "Needs attention",
 };
-
