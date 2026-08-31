@@ -3214,6 +3214,10 @@ body {
   line-height: 1.25;
   margin: 0 0 10px;
 }
+.brief-hero-heading { align-items: start; display: flex; gap: 20px; justify-content: space-between; margin-bottom: 10px; }
+.brief-hero-heading h2 { margin: 0; }
+.assistant-call-briefing { display: grid; flex: 0 0 auto; gap: 4px; justify-items: end; }
+.assistant-call-briefing small { color: var(--text-3); font-size: 8px; letter-spacing: .025em; }
 .brief-hero p { color: var(--text-2); line-height: 1.65; margin: 0; }
 .brief-hero .brief-build-direction {
   color: var(--text);
@@ -3237,21 +3241,56 @@ body {
 .brief-vision span { color: var(--text-3); font-size: 12px; }
 .brief-vision p { margin: 5px 0 0; line-height: 1.6; }
 .one-column { grid-template-columns: 1fr; }
-.transcript-card summary { cursor: pointer; font-weight: 650; }
-.transcript-card pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font: inherit;
-  color: var(--text-2);
-  line-height: 1.65;
-  margin: 18px 0 0;
+.transcript-card summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-weight: 650;
+  justify-content: space-between;
+  list-style-position: inside;
+}
+.transcript-summary-meta {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+.transcript-turns {
+  border-top: 1px solid var(--border);
+  margin-top: 18px;
   max-height: 620px;
   overflow-y: auto;
+  padding-top: 4px;
 }
+.transcript-turn {
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 118px minmax(0, 1fr);
+  padding: 18px 4px;
+}
+.transcript-turn:last-child { border-bottom: 0; }
+.transcript-turn-meta { display: grid; gap: 5px; align-content: start; }
+.transcript-turn-meta time { color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; padding-left: 14px; }
+.transcript-speaker { align-items: center; display: flex; font-size: 12px; font-weight: 700; gap: 7px; }
+.transcript-speaker-dot { background: var(--accent); border-radius: 50%; height: 7px; width: 7px; }
+.transcript-turn[data-speaker="1"] .transcript-speaker-dot { background: var(--chart-stage-new); }
+.transcript-turn[data-speaker="2"] .transcript-speaker-dot { background: var(--chart-stage-signed); }
+.transcript-turn[data-speaker="3"] .transcript-speaker-dot { background: var(--chart-stage-in-conversation); }
+.transcript-turn p { color: var(--text-2); line-height: 1.68; margin: 0; overflow-wrap: anywhere; }
+.transcript-legacy { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 18px; }
+.transcript-legacy > p:first-child { color: var(--text-2); line-height: 1.68; margin: 0; }
+.transcript-legacy .sub { border-top: 1px solid var(--border); margin: 20px 0 0; padding-top: 14px; }
 @media (max-width: 720px) {
   .call-list-card { align-items: flex-start; flex-direction: column; }
   .call-list-meta { align-items: flex-start; min-width: 0; }
   .brief-grid { grid-template-columns: 1fr; }
+  .transcript-turn { gap: 8px; grid-template-columns: 1fr; }
+  .transcript-turn-meta { display: flex; justify-content: space-between; }
+  .transcript-turn-meta time { padding-left: 0; }
+  .brief-hero-heading { align-items: stretch; flex-direction: column; }
+  .assistant-call-briefing { justify-items: stretch; }
+  .assistant-call-briefing .voice-briefing-button { justify-content: center; }
+  .assistant-call-briefing small { text-align: center; }
 }
 .auth-field-hint {
   font-size: 12px;

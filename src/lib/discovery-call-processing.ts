@@ -31,6 +31,12 @@ const projectBriefSchema = {
   },
 } as const;
 
+type DiarizedTranscription = {
+  text?: string;
+  segments?: { id: string; speaker: string; start: number; end: number; text: string }[];
+  error?: { message?: string };
+};
+
 async function transcribeRecording(response: Response, fileType: string | null) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
@@ -41,18 +47,27 @@ async function transcribeRecording(response: Response, fileType: string | null) 
   if (audio.size > MAX_AUDIO_BYTES) throw new Error("Recording audio is larger than 25 MB. Shorten the recording or enable a smaller Zoom audio-only file.");
   const extension = (fileType || "m4a").toLowerCase();
   const form = new FormData();
-  form.set("model", process.env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-transcribe");
+  form.set("model", "gpt-4o-transcribe-diarize");
   form.set("file", audio, `discovery-call.${extension}`);
-  form.set("prompt", "This is a website, app, or software discovery call. Preserve product names, URLs, budgets, timelines, feature requests, and design terminology accurately.");
+  form.set("response_format", "diarized_json");
+  form.set("chunking_strategy", "auto");
+  form.set("language", "en");
 
   const result = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}` },
     body: form,
   });
-  const body = await result.json() as { text?: string; error?: { message?: string } };
+  const body = await result.json() as DiarizedTranscription;
   if (!result.ok || !body.text) throw new Error(body.error?.message || "OpenAI could not transcribe the recording");
-  return body.text;
+  const speakers = [...new Set((body.segments ?? []).map((segment) => segment.speaker))];
+  const structuredText = body.segments?.length
+    ? body.segments.map((segment) => {
+        const speakerNumber = speakers.indexOf(segment.speaker) + 1;
+        return `[[${segment.start.toFixed(2)}|${segment.end.toFixed(2)}|Speaker ${speakerNumber}]] ${segment.text.trim()}`;
+      }).join("\n")
+    : body.text;
+  return { plainText: body.text, structuredText };
 }
 
 function responseOutputText(body: { output_text?: string; output?: { content?: { type?: string; text?: string }[] }[] }) {
@@ -100,8 +115,8 @@ export async function processDiscoveryCall(callId: string, webhookDownloadToken?
       fileType = fresh.fileType || fileType;
     }
     const transcript = await transcribeRecording(recording, fileType);
-    const projectBrief = await createProjectBrief(transcript);
-    const { error } = await service.from("discovery_calls").update({ status: "completed", transcript, project_brief: projectBrief, processed_at: new Date().toISOString(), last_error: null }).eq("id", callId);
+    const projectBrief = await createProjectBrief(transcript.plainText);
+    const { error } = await service.from("discovery_calls").update({ status: "completed", transcript: transcript.structuredText, project_brief: projectBrief, processed_at: new Date().toISOString(), last_error: null }).eq("id", callId);
     if (error) throw error;
     if (call.lead_id) {
       await service.from("lead_activities").insert({ coach_id: call.coach_id, lead_id: call.lead_id, activity_type: "consultation", note: "Discovery call transcribed and project brief created", metadata: { discovery_call_id: callId } });
