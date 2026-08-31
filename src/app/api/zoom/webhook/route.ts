@@ -20,6 +20,7 @@ type ZoomRecordingFile = {
 type ZoomWebhookBody = {
   event?: string;
   event_ts?: number;
+  download_token?: string;
   payload?: {
     account_id?: string;
     plainToken?: string;
@@ -126,6 +127,6 @@ export async function POST(request: Request) {
     }).eq("id", callId);
   }
 
-  if (existing?.status !== "completed" && callId) after(() => processDiscoveryCall(callId));
+  if (existing?.status !== "completed" && callId) after(() => processDiscoveryCall(callId, body.download_token));
   return Response.json({ received: true });
 }

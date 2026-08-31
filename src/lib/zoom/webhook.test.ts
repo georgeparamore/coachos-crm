@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
+import { encodeZoomMeetingUuid } from "./client.ts";
 import { zoomValidationResponse, zoomWebhookSignatureIsValid } from "./webhook.ts";
 
 test("accepts an authentic Zoom webhook and rejects tampering", () => {
@@ -19,3 +20,7 @@ test("creates Zoom's URL-validation challenge response", () => {
   assert.equal(response.encryptedToken, createHmac("sha256", "test-zoom-secret").update("plain-token").digest("hex"));
 });
 
+test("encodes Zoom meeting UUIDs for recording API paths", () => {
+  assert.equal(encodeZoomMeetingUuid("meeting+uuid=="), "meeting%2Buuid%3D%3D");
+  assert.equal(encodeZoomMeetingUuid("/meeting//uuid=="), "%252Fmeeting%252F%252Fuuid%253D%253D");
+});

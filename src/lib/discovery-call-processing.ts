@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { logServerError } from "@/lib/log-server-error";
-import { downloadZoomRecording, getZoomAccessToken } from "@/lib/zoom/client";
+import { downloadZoomRecording, getFreshZoomRecording, getZoomAccessToken } from "@/lib/zoom/client";
 import type { DiscoveryProjectBrief } from "@/lib/discovery-calls";
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
@@ -80,7 +80,7 @@ async function createProjectBrief(transcript: string): Promise<DiscoveryProjectB
   return JSON.parse(output) as DiscoveryProjectBrief;
 }
 
-export async function processDiscoveryCall(callId: string) {
+export async function processDiscoveryCall(callId: string, webhookDownloadToken?: string | null) {
   const service = createServiceClient();
   const { data: call } = await service.from("discovery_calls").select("*").eq("id", callId).maybeSingle();
   if (!call || call.status === "completed") return;
@@ -90,8 +90,16 @@ export async function processDiscoveryCall(callId: string) {
   try {
     if (!call.recording_download_url) throw new Error("Zoom did not include a downloadable recording file");
     const zoomToken = await getZoomAccessToken();
-    const recording = await downloadZoomRecording(call.recording_download_url, zoomToken);
-    const transcript = await transcribeRecording(recording, call.recording_file_type);
+    let recording: Response;
+    let fileType = call.recording_file_type;
+    try {
+      recording = await downloadZoomRecording(call.recording_download_url, webhookDownloadToken || zoomToken);
+    } catch {
+      const fresh = await getFreshZoomRecording(call.zoom_meeting_uuid, call.recording_file_id, zoomToken);
+      recording = await downloadZoomRecording(fresh.downloadUrl, fresh.downloadToken);
+      fileType = fresh.fileType || fileType;
+    }
+    const transcript = await transcribeRecording(recording, fileType);
     const projectBrief = await createProjectBrief(transcript);
     const { error } = await service.from("discovery_calls").update({ status: "completed", transcript, project_brief: projectBrief, processed_at: new Date().toISOString(), last_error: null }).eq("id", callId);
     if (error) throw error;
@@ -104,4 +112,3 @@ export async function processDiscoveryCall(callId: string) {
     await logServerError({ message }, `zoom.discovery-call.process:${callId}`);
   }
 }
-
