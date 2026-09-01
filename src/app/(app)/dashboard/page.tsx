@@ -15,6 +15,7 @@ import { BarList } from "@/components/charts/bar-list";
 import { SeriesChart } from "@/components/charts/series-chart";
 import { OnboardingChecklist, type OnboardingStep } from "@/components/onboarding-checklist";
 import { DailyVoiceBriefing } from "@/components/daily-voice-briefing";
+import { DashboardPriorityQueue, type DashboardPriority } from "@/components/dashboard-priority-queue";
 import styles from "./dashboard.module.css";
 
 function dayLabel(date: Date) {
@@ -97,8 +98,7 @@ export default async function DashboardPage() {
   const events = (todaysEvents as CalendarEvent[]) ?? [];
   const clientNameById = new Map((clientProfilesRes.data ?? []).map((client) => [client.id, client.full_name || client.email || "Client"]));
 
-  type AttentionItem = { id: string; title: string; detail: string; href: string; label: string; priority: "high" | "medium" | "low" };
-  const attentionItems: AttentionItem[] = [];
+  const attentionItems: DashboardPriority[] = [];
   const dueByEndOfDay = endOfDay.getTime();
   for (const lead of allLeads) {
     if (lead.stage === "signed") continue;
@@ -166,7 +166,7 @@ export default async function DashboardPage() {
       minute: "2-digit",
     }),
   }));
-  const briefingPriorities = attentionItems.slice(0, 3).map((item) => ({ title: item.title, detail: item.detail }));
+  const briefingPriorities = attentionItems.map((item) => ({ id: item.id, title: item.title, detail: item.detail }));
 
   // New leads per day, last 7 days
   const days: Date[] = [];
@@ -244,14 +244,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className={styles.focusGrid}>
-        <div className={`card ${styles.attentionCard}`}>
-          <div className="card-title-row"><div className="card-title">Priority queue</div><Link href="/crm">View leads →</Link></div>
-          {attentionItems.length === 0 ? (
-            <div className={styles.allClear}><span>✓</span><div><strong>You’re all caught up</strong><p>No overdue follow-ups or client actions right now.</p></div></div>
-          ) : (
-            attentionItems.slice(0, 5).map((item) => <Link href={item.href} className={styles.attentionRow} key={item.id}><i className={styles[item.priority]} /><div><strong>{item.title}</strong><span>{item.detail}</span></div><b>{item.label}</b><span>→</span></Link>)
-          )}
-        </div>
+        <DashboardPriorityQueue items={attentionItems} />
 
         <PreviewCard title="Today's schedule" href="/calendar">
           {events.length === 0 ? (

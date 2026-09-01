@@ -1287,7 +1287,8 @@ body {
 .quick-add-menu button:hover { background: var(--surface2); }
 .quick-add-menu button > span { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--accent); font-size: 14px; }
 
-.voice-briefing { display: grid; justify-items: end; gap: 4px; }
+.voice-briefing { display: grid; justify-items: end; gap: 4px; position: relative; }
+.voice-briefing-actions { display: flex; align-items: center; gap: 5px; }
 .voice-briefing-button { display: inline-flex; min-height: 38px; align-items: center; gap: 9px; padding: 0 13px 0 8px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: 999px; background: color-mix(in srgb, var(--surface) 76%, var(--accent-light)); color: var(--text); cursor: pointer; font: inherit; font-size: 10.5px; font-weight: 650; transition: border-color 160ms ease, background-color 160ms ease, box-shadow 180ms ease, transform 180ms cubic-bezier(.16,1,.3,1); }
 .voice-briefing-button:hover { border-color: color-mix(in srgb, var(--accent) 56%, var(--border)); background: var(--surface); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .voice-briefing-button:active { transform: translateY(0) scale(.985); }
@@ -1295,6 +1296,16 @@ body {
 .voice-briefing-icon { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 50%; background: var(--accent); color: #fff; }
 .voice-briefing-icon svg { width: 15px; height: 15px; overflow: visible; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .voice-briefing small { color: var(--text-3); font-size: 8px; letter-spacing: .025em; }
+.voice-briefing-error { color: var(--red-text) !important; }
+.voice-options { position: relative; }
+.voice-options > summary { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--text-3); cursor: pointer; font-size: 10px; letter-spacing: 1px; list-style: none; }
+.voice-options > summary::-webkit-details-marker { display: none; }
+.voice-options > summary:hover { border-color: var(--border-strong); color: var(--text); }
+.voice-options-popover { position: absolute; top: 38px; right: 0; z-index: 30; display: grid; width: 250px; gap: 12px; padding: 15px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.voice-options-popover label { display: grid; gap: 5px; }
+.voice-options-popover label > span { color: var(--text-2); font-size: 10px; font-weight: 650; }
+.voice-options-popover select { width: 100%; min-height: 36px; padding: 0 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface2); color: var(--text); font: inherit; font-size: 11px; }
+.voice-options-popover p { margin: 0; color: var(--text-3); font-size: 9px; }
 .voice-briefing-bars { display: flex; height: 13px; align-items: center; gap: 2px; }
 .voice-briefing-bars i { width: 2px; border-radius: 2px; background: currentColor; animation: voicePulse 680ms ease-in-out infinite alternate; }
 .voice-briefing-bars i:nth-child(1) { height: 5px; }
@@ -1305,6 +1316,7 @@ body {
 @media (max-width: 520px) {
   .voice-briefing { justify-items: stretch; }
   .voice-briefing-button { justify-content: center; }
+  .voice-briefing-actions { justify-content: center; }
   .voice-briefing small { text-align: center; }
 }
 
