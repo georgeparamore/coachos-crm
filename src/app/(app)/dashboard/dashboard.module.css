@@ -6,8 +6,9 @@
 
 .hero {
   position: relative;
+  z-index: 5;
   align-items: center;
-  overflow: hidden;
+  overflow: visible;
   margin-bottom: 32px;
   padding: 30px 32px;
   border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
@@ -19,14 +20,15 @@
 
 .hero::before {
   position: absolute;
-  inset: -90% -8% -120% 58%;
+  inset: 0;
   z-index: -1;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 88% 20%, color-mix(in srgb, var(--accent) 14%, transparent) 0 34%, transparent 72%);
   filter: blur(2px);
-  transform: translateX(16%) rotate(-12deg);
+  transform: translateX(0);
   animation: heroOrbit 680ms cubic-bezier(.16,1,.3,1) both;
   content: "";
+  pointer-events: none;
 }
 
 .hero > * {
@@ -41,8 +43,8 @@
 }
 
 @keyframes heroOrbit {
-  from { clip-path: inset(0 0 0 100% round 50%); transform: translateX(34%) rotate(-12deg); }
-  to { clip-path: inset(0 0 0 0 round 50%); transform: translateX(16%) rotate(-12deg); }
+  from { opacity: 0; transform: translateX(4%); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .dashboard :global(.page-title) {
