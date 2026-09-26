@@ -16,7 +16,8 @@
     "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "stripe": "^22.3.2"
+    "stripe": "^22.3.2",
+    "workflow": "^4.8.9"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

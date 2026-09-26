@@ -161,6 +161,106 @@ async function createProjectBrief(transcript: string): Promise<DiscoveryProjectB
   return JSON.parse(output) as DiscoveryProjectBrief;
 }
 
+async function getRecordingAudio(call: Record<string, unknown>) {
+  if (!call.recording_download_url) throw new Error("Zoom did not include a downloadable recording file");
+  const zoomToken = await getZoomAccessToken();
+  let recording: Response;
+  let fileType = call.recording_file_type as string | null;
+  try {
+    recording = await downloadZoomRecording(call.recording_download_url as string, zoomToken);
+  } catch {
+    const fresh = await getFreshZoomRecording(call.zoom_meeting_uuid as string, call.recording_file_id as string | null, zoomToken);
+    recording = await downloadZoomRecording(fresh.downloadUrl, fresh.downloadToken);
+    fileType = fresh.fileType || fileType;
+  }
+  const declaredSize = Number(recording.headers.get("content-length") || 0);
+  if (declaredSize > MAX_RECORDING_BYTES) throw new Error("Recording audio is larger than 200 MB. Download it from Zoom and upload a compressed audio-only copy.");
+  const audio = await recording.blob();
+  if (audio.size > MAX_RECORDING_BYTES) throw new Error("Recording audio is larger than 200 MB. Download it from Zoom and upload a compressed audio-only copy.");
+  return { audio, extension: (fileType || "m4a").toLowerCase() };
+}
+
+export async function beginDiscoveryCallProcessing(callId: string) {
+  const service = createServiceClient();
+  const { data: call, error } = await service.from("discovery_calls").select("id,status,processing_attempts,duration_minutes,recording_file_size").eq("id", callId).maybeSingle();
+  if (error || !call) throw error ?? new Error("Discovery call not found");
+  if (call.status === "completed") return { completed: true, segmentCount: 0 };
+  const attempts = (call.processing_attempts ?? 0) + 1;
+  await service.from("discovery_calls").update({ status: "processing", processing_attempts: attempts, last_error: null }).eq("id", callId);
+  const isLong = Number(call.recording_file_size ?? 0) > DIRECT_TRANSCRIPTION_BYTES;
+  const segmentCount = isLong ? Math.max(1, Math.ceil(Number(call.duration_minutes ?? 1) * 60 / SEGMENT_SECONDS)) : 1;
+  console.info("[discovery-call] durable processing started", { callId, attempts, segmentCount });
+  return { completed: false, segmentCount };
+}
+
+export async function transcribeDiscoveryCallSegment(callId: string, segmentIndex: number) {
+  const service = createServiceClient();
+  const { data: call, error } = await service.from("discovery_calls").select("*").eq("id", callId).maybeSingle();
+  if (error || !call) throw error ?? new Error("Discovery call not found");
+  const { audio, extension } = await getRecordingAudio(call as Record<string, unknown>);
+  let chunk: AudioChunk = { audio, extension, offsetSeconds: 0 };
+  let cleanup: () => Promise<void> = async () => undefined;
+
+  if (audio.size > DIRECT_TRANSCRIPTION_BYTES) {
+    const executable = resolveFfmpegPath();
+    if (!executable) throw new Error("Long-recording conversion is unavailable on this server");
+    const workingDirectory = await mkdtemp(join(tmpdir(), "full-circle-segment-"));
+    cleanup = () => rm(workingDirectory, { recursive: true, force: true });
+    const inputPath = join(workingDirectory, `recording.${extension}`);
+    const outputPath = join(workingDirectory, `segment-${segmentIndex}.mp3`);
+    try {
+      await writeFile(inputPath, Buffer.from(await audio.arrayBuffer()));
+      await execFileAsync(executable, [
+        "-hide_banner", "-loglevel", "error", "-ss", String(segmentIndex * SEGMENT_SECONDS), "-i", inputPath,
+        "-t", String(SEGMENT_SECONDS), "-vn", "-map", "0:a:0", "-ac", "1", "-ar", "16000", "-b:a", "48k", outputPath,
+      ], { timeout: 180_000, maxBuffer: 4 * 1024 * 1024 });
+      const bytes = await readFile(outputPath);
+      chunk = { audio: new Blob([bytes], { type: "audio/mpeg" }), extension: "mp3", offsetSeconds: segmentIndex * SEGMENT_SECONDS };
+    } catch (segmentError) {
+      await cleanup();
+      throw segmentError;
+    }
+  }
+
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
+    console.info("[discovery-call] transcribing durable segment", { callId, segmentIndex, bytes: chunk.audio.size });
+    const body = await transcribeChunk(chunk, apiKey);
+    const speakers = [...new Set((body.segments ?? []).map((segment) => segment.speaker))];
+    const structuredText = (body.segments ?? []).map((segment) => {
+      const speakerNumber = speakers.indexOf(segment.speaker) + 1;
+      const start = segment.start + chunk.offsetSeconds;
+      const end = segment.end + chunk.offsetSeconds;
+      return `[[${start.toFixed(2)}|${end.toFixed(2)}|Speaker ${speakerNumber}]] ${segment.text.trim()}`;
+    }).join("\n") || body.text?.trim() || "";
+    return { plainText: body.text?.trim() || "", structuredText };
+  } finally {
+    await cleanup();
+  }
+}
+
+export async function completeDiscoveryCallProcessing(callId: string, segments: { plainText: string; structuredText: string }[]) {
+  const service = createServiceClient();
+  const { data: call, error } = await service.from("discovery_calls").select("coach_id,lead_id").eq("id", callId).maybeSingle();
+  if (error || !call) throw error ?? new Error("Discovery call not found");
+  const plainText = segments.map((segment) => segment.plainText).filter(Boolean).join("\n\n");
+  const structuredText = segments.map((segment) => segment.structuredText).filter(Boolean).join("\n");
+  const projectBrief = await createProjectBrief(plainText);
+  const { error: updateError } = await service.from("discovery_calls").update({ status: "completed", transcript: structuredText || plainText, project_brief: projectBrief, processed_at: new Date().toISOString(), last_error: null }).eq("id", callId);
+  if (updateError) throw updateError;
+  if (call.lead_id) {
+    await service.from("lead_activities").insert({ coach_id: call.coach_id, lead_id: call.lead_id, activity_type: "consultation", note: "Discovery call transcribed and project brief created", metadata: { discovery_call_id: callId } });
+  }
+  console.info("[discovery-call] durable processing completed", { callId, segments: segments.length });
+}
+
+export async function failDiscoveryCallProcessing(callId: string, message: string) {
+  const service = createServiceClient();
+  await service.from("discovery_calls").update({ status: "failed", last_error: message.slice(0, 1000) }).eq("id", callId);
+  await logServerError({ message }, `zoom.discovery-call.workflow:${callId}`);
+}
+
 export async function processDiscoveryCall(callId: string, webhookDownloadToken?: string | null) {
   const service = createServiceClient();
   const { data: call } = await service.from("discovery_calls").select("*").eq("id", callId).maybeSingle();

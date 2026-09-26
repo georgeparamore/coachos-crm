@@ -1,6 +1,6 @@
-import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { processDiscoveryCall } from "@/lib/discovery-call-processing";
+import { start } from "workflow/api";
+import { processDiscoveryCallWorkflow } from "@/workflows/discovery-call";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -39,6 +39,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!call) return Response.json({ error: "Discovery call not found" }, { status: 404 });
   console.info("[discovery-call] retry requested", { callId: id, previousStatus: call.status, processingAttempts: call.processing_attempts });
   await supabase.from("discovery_calls").update({ status: "queued", last_error: null }).eq("id", id);
-  after(() => processDiscoveryCall(id));
-  return Response.json({ ok: true });
+  const run = await start(processDiscoveryCallWorkflow, [id]);
+  return Response.json({ ok: true, runId: run.runId });
 }

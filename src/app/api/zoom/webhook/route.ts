@@ -1,8 +1,8 @@
-import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logServerError } from "@/lib/log-server-error";
-import { processDiscoveryCall } from "@/lib/discovery-call-processing";
 import { zoomValidationResponse, zoomWebhookSignatureIsValid } from "@/lib/zoom/webhook";
+import { start } from "workflow/api";
+import { processDiscoveryCallWorkflow } from "@/workflows/discovery-call";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -127,6 +127,6 @@ export async function POST(request: Request) {
     }).eq("id", callId);
   }
 
-  if (existing?.status !== "completed" && callId) after(() => processDiscoveryCall(callId, body.download_token));
+  if (existing?.status !== "completed" && callId) await start(processDiscoveryCallWorkflow, [callId]);
   return Response.json({ received: true });
 }
