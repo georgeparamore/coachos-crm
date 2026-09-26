@@ -17,6 +17,13 @@ const DIRECT_TRANSCRIPTION_BYTES = 24 * 1024 * 1024;
 const SEGMENT_SECONDS = 20 * 60;
 const execFileAsync = promisify(execFile);
 
+function resolveFfmpegPath() {
+  // ffmpeg-static exports an absolute path from the build machine. Vercel
+  // preserves the binary under the function's runtime working directory.
+  if (process.env.VERCEL) return join(process.cwd(), "node_modules", "ffmpeg-static", "ffmpeg");
+  return ffmpegPath;
+}
+
 const projectBriefSchema = {
   type: "object",
   additionalProperties: false,
@@ -55,14 +62,15 @@ async function prepareAudioChunks(audio: Blob, extension: string): Promise<{ chu
   if (audio.size <= DIRECT_TRANSCRIPTION_BYTES) {
     return { chunks: [{ audio, extension, offsetSeconds: 0 }], cleanup: async () => undefined };
   }
-  if (!ffmpegPath) throw new Error("Long-recording conversion is unavailable on this server");
+  const executable = resolveFfmpegPath();
+  if (!executable) throw new Error("Long-recording conversion is unavailable on this server");
 
   const workingDirectory = await mkdtemp(join(tmpdir(), "full-circle-call-"));
   const inputPath = join(workingDirectory, `recording.${extension}`);
   const outputPattern = join(workingDirectory, "section-%03d.mp3");
   try {
     await writeFile(inputPath, Buffer.from(await audio.arrayBuffer()));
-    await execFileAsync(ffmpegPath, [
+    await execFileAsync(executable, [
       "-hide_banner", "-loglevel", "error", "-i", inputPath,
       "-vn", "-map", "0:a:0", "-ac", "1", "-ar", "16000", "-b:a", "48k",
       "-f", "segment", "-segment_time", String(SEGMENT_SECONDS), "-reset_timestamps", "1", outputPattern,
