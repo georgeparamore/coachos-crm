@@ -238,6 +238,9 @@ export async function transcribeDiscoveryCallSegment(callId: string, segmentInde
       const end = segment.end + chunk.offsetSeconds;
       return `[[${start.toFixed(2)}|${end.toFixed(2)}|Speaker ${speakerNumber}]] ${segment.text.trim()}`;
     }).join("\n") || body.text?.trim() || "";
+    // Touch the call after every durable segment so the UI can distinguish
+    // healthy long-running work from an abandoned processor.
+    await service.from("discovery_calls").update({ status: "processing" }).eq("id", callId);
     return { plainText: body.text?.trim() || "", structuredText };
   } finally {
     await cleanup();
