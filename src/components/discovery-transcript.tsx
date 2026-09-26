@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 type TranscriptTurn = { start: number; end: number; speaker: string; text: string };
 
 function formatTimestamp(seconds: number) {
@@ -21,11 +25,26 @@ function parseTranscript(transcript: string): TranscriptTurn[] {
 }
 
 export function DiscoveryTranscript({ transcript }: { transcript: string }) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const validSegments = parseTranscript(transcript);
   const speakers = [...new Set(validSegments.map((segment) => segment.speaker))];
+  const copyText = validSegments.length
+    ? validSegments.map((segment) => `${formatTimestamp(segment.start)} — ${speakerName(segment.speaker, speakers)}\n${segment.text.trim()}`).join("\n\n")
+    : transcript;
+
+  async function copyAll() {
+    try {
+      await navigator.clipboard.writeText(copyText);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 1800);
+    } catch {
+      setCopyState("failed");
+    }
+  }
 
   return <details className="card transcript-card">
     <summary><span>Full transcript</span><span className="transcript-summary-meta">{validSegments.length ? `${speakers.length} speakers · ${validSegments.length} turns` : "Plain text"}</span></summary>
+    <button className="transcript-copy" onClick={copyAll} type="button">{copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy all"}</button>
     {validSegments.length ? <div className="transcript-turns">
       {validSegments.map((segment, index) => {
         const speakerIndex = speakers.indexOf(segment.speaker);

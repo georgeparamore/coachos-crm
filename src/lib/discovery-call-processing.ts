@@ -3,7 +3,10 @@ import { logServerError } from "@/lib/log-server-error";
 import { downloadZoomRecording, getFreshZoomRecording, getZoomAccessToken } from "@/lib/zoom/client";
 import type { DiscoveryProjectBrief } from "@/lib/discovery-calls";
 
-const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+// GPT-4o transcription performs its own voice-activity chunking. Keep a generous
+// ceiling here to protect function memory without applying Whisper's legacy
+// 25 MiB upload limit to newer transcription models.
+const MAX_RECORDING_BYTES = 200 * 1024 * 1024;
 
 const projectBriefSchema = {
   type: "object",
@@ -41,11 +44,12 @@ async function transcribeRecording(response: Response, fileType: string | null) 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
   const declaredSize = Number(response.headers.get("content-length") || 0);
-  if (declaredSize > MAX_AUDIO_BYTES) throw new Error("Recording audio is larger than 25 MB. Shorten the recording or enable a smaller Zoom audio-only file.");
+  if (declaredSize > MAX_RECORDING_BYTES) throw new Error("Recording audio is larger than 200 MB. Download it from Zoom and upload a compressed audio-only copy.");
 
   const audio = await response.blob();
-  if (audio.size > MAX_AUDIO_BYTES) throw new Error("Recording audio is larger than 25 MB. Shorten the recording or enable a smaller Zoom audio-only file.");
+  if (audio.size > MAX_RECORDING_BYTES) throw new Error("Recording audio is larger than 200 MB. Download it from Zoom and upload a compressed audio-only copy.");
   const extension = (fileType || "m4a").toLowerCase();
+  console.info("[discovery-call] transcribing recording", { bytes: audio.size, extension, model: "gpt-4o-transcribe-diarize" });
   const form = new FormData();
   form.set("model", "gpt-4o-transcribe-diarize");
   form.set("file", audio, `discovery-call.${extension}`);

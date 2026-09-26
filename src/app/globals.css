@@ -3249,7 +3249,26 @@ body {
   font-weight: 650;
   justify-content: space-between;
   list-style-position: inside;
+  padding-right: 82px;
 }
+.transcript-card { position: relative; }
+.transcript-copy {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface2);
+  color: var(--text-2);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 650;
+}
+.transcript-copy:hover { border-color: var(--border-strong); color: var(--text); }
+.transcript-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .transcript-summary-meta {
   color: var(--text-3);
   font-size: 12px;
@@ -3288,6 +3307,7 @@ body {
   .transcript-turn { gap: 8px; grid-template-columns: 1fr; }
   .transcript-turn-meta { display: flex; justify-content: space-between; }
   .transcript-turn-meta time { padding-left: 0; }
+  .transcript-card summary { align-items: flex-start; flex-direction: column; gap: 4px; }
   .brief-hero-heading { align-items: stretch; flex-direction: column; }
   .assistant-call-briefing { justify-items: stretch; }
   .assistant-call-briefing .voice-briefing-button { justify-content: center; }
