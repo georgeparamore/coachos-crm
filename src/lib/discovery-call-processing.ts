@@ -2,11 +2,20 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { logServerError } from "@/lib/log-server-error";
 import { downloadZoomRecording, getFreshZoomRecording, getZoomAccessToken } from "@/lib/zoom/client";
 import type { DiscoveryProjectBrief } from "@/lib/discovery-calls";
+import ffmpegPath from "ffmpeg-static";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 
 // GPT-4o transcription performs its own voice-activity chunking. Keep a generous
 // ceiling here to protect function memory without applying Whisper's legacy
 // 25 MiB upload limit to newer transcription models.
 const MAX_RECORDING_BYTES = 200 * 1024 * 1024;
+const DIRECT_TRANSCRIPTION_BYTES = 24 * 1024 * 1024;
+const SEGMENT_SECONDS = 20 * 60;
+const execFileAsync = promisify(execFile);
 
 const projectBriefSchema = {
   type: "object",
@@ -40,19 +49,42 @@ type DiarizedTranscription = {
   error?: { message?: string };
 };
 
-async function transcribeRecording(response: Response, fileType: string | null) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
-  const declaredSize = Number(response.headers.get("content-length") || 0);
-  if (declaredSize > MAX_RECORDING_BYTES) throw new Error("Recording audio is larger than 200 MB. Download it from Zoom and upload a compressed audio-only copy.");
+type AudioChunk = { audio: Blob; extension: string; offsetSeconds: number };
 
-  const audio = await response.blob();
-  if (audio.size > MAX_RECORDING_BYTES) throw new Error("Recording audio is larger than 200 MB. Download it from Zoom and upload a compressed audio-only copy.");
-  const extension = (fileType || "m4a").toLowerCase();
-  console.info("[discovery-call] transcribing recording", { bytes: audio.size, extension, model: "gpt-4o-transcribe-diarize" });
+async function prepareAudioChunks(audio: Blob, extension: string): Promise<{ chunks: AudioChunk[]; cleanup: () => Promise<void> }> {
+  if (audio.size <= DIRECT_TRANSCRIPTION_BYTES) {
+    return { chunks: [{ audio, extension, offsetSeconds: 0 }], cleanup: async () => undefined };
+  }
+  if (!ffmpegPath) throw new Error("Long-recording conversion is unavailable on this server");
+
+  const workingDirectory = await mkdtemp(join(tmpdir(), "full-circle-call-"));
+  const inputPath = join(workingDirectory, `recording.${extension}`);
+  const outputPattern = join(workingDirectory, "section-%03d.mp3");
+  try {
+    await writeFile(inputPath, Buffer.from(await audio.arrayBuffer()));
+    await execFileAsync(ffmpegPath, [
+      "-hide_banner", "-loglevel", "error", "-i", inputPath,
+      "-vn", "-map", "0:a:0", "-ac", "1", "-ar", "16000", "-b:a", "48k",
+      "-f", "segment", "-segment_time", String(SEGMENT_SECONDS), "-reset_timestamps", "1", outputPattern,
+    ], { timeout: 180_000, maxBuffer: 4 * 1024 * 1024 });
+    const names = (await readdir(workingDirectory)).filter((name) => /^section-\d+\.mp3$/.test(name)).sort();
+    if (!names.length) throw new Error("The long recording did not contain a readable audio track");
+    const chunks = await Promise.all(names.map(async (name, index) => {
+      const bytes = await readFile(join(workingDirectory, name));
+      return { audio: new Blob([bytes], { type: "audio/mpeg" }), extension: "mp3", offsetSeconds: index * SEGMENT_SECONDS };
+    }));
+    console.info("[discovery-call] prepared long recording", { inputBytes: audio.size, chunks: chunks.map((chunk) => chunk.audio.size) });
+    return { chunks, cleanup: () => rm(workingDirectory, { recursive: true, force: true }) };
+  } catch (error) {
+    await rm(workingDirectory, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+async function transcribeChunk(chunk: AudioChunk, apiKey: string) {
   const form = new FormData();
   form.set("model", "gpt-4o-transcribe-diarize");
-  form.set("file", audio, `discovery-call.${extension}`);
+  form.set("file", chunk.audio, `discovery-call.${chunk.extension}`);
   form.set("response_format", "diarized_json");
   form.set("chunking_strategy", "auto");
   form.set("language", "en");
@@ -64,14 +96,36 @@ async function transcribeRecording(response: Response, fileType: string | null) 
   });
   const body = await result.json() as DiarizedTranscription;
   if (!result.ok || !body.text) throw new Error(body.error?.message || "OpenAI could not transcribe the recording");
-  const speakers = [...new Set((body.segments ?? []).map((segment) => segment.speaker))];
-  const structuredText = body.segments?.length
-    ? body.segments.map((segment) => {
+  return body;
+}
+
+async function transcribeRecording(response: Response, fileType: string | null) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
+  const declaredSize = Number(response.headers.get("content-length") || 0);
+  if (declaredSize > MAX_RECORDING_BYTES) throw new Error("Recording audio is larger than 200 MB. Download it from Zoom and upload a compressed audio-only copy.");
+
+  const audio = await response.blob();
+  if (audio.size > MAX_RECORDING_BYTES) throw new Error("Recording audio is larger than 200 MB. Download it from Zoom and upload a compressed audio-only copy.");
+  const extension = (fileType || "m4a").toLowerCase();
+  console.info("[discovery-call] transcribing recording", { bytes: audio.size, extension, model: "gpt-4o-transcribe-diarize" });
+  const prepared = await prepareAudioChunks(audio, extension);
+  try {
+    const results = await Promise.all(prepared.chunks.map(async (chunk) => ({ chunk, body: await transcribeChunk(chunk, apiKey) })));
+    const plainText = results.map(({ body }) => body.text?.trim()).filter(Boolean).join("\n\n");
+    const structuredText = results.flatMap(({ chunk, body }) => {
+      const speakers = [...new Set((body.segments ?? []).map((segment) => segment.speaker))];
+      return (body.segments ?? []).map((segment) => {
         const speakerNumber = speakers.indexOf(segment.speaker) + 1;
-        return `[[${segment.start.toFixed(2)}|${segment.end.toFixed(2)}|Speaker ${speakerNumber}]] ${segment.text.trim()}`;
-      }).join("\n")
-    : body.text;
-  return { plainText: body.text, structuredText };
+        const start = segment.start + chunk.offsetSeconds;
+        const end = segment.end + chunk.offsetSeconds;
+        return `[[${start.toFixed(2)}|${end.toFixed(2)}|Speaker ${speakerNumber}]] ${segment.text.trim()}`;
+      });
+    }).join("\n") || plainText;
+    return { plainText, structuredText };
+  } finally {
+    await prepared.cleanup();
+  }
 }
 
 function responseOutputText(body: { output_text?: string; output?: { content?: { type?: string; text?: string }[] }[] }) {
