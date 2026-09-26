@@ -41,6 +41,7 @@ export type DiscoveryCall = {
   last_error: string | null;
   processed_at: string | null;
   created_at: string;
+  updated_at: string;
   businesses?: { name: string; color: string };
   leads?: { name: string; email: string | null } | null;
 };

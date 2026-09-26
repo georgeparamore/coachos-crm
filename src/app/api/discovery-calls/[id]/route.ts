@@ -35,10 +35,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "Not signed in" }, { status: 401 });
-  const { data: call } = await supabase.from("discovery_calls").select("id").eq("id", id).eq("coach_id", user.id).maybeSingle();
+  const { data: call } = await supabase.from("discovery_calls").select("id,status,processing_attempts").eq("id", id).eq("coach_id", user.id).maybeSingle();
   if (!call) return Response.json({ error: "Discovery call not found" }, { status: 404 });
+  console.info("[discovery-call] retry requested", { callId: id, previousStatus: call.status, processingAttempts: call.processing_attempts });
   await supabase.from("discovery_calls").update({ status: "queued", last_error: null }).eq("id", id);
   after(() => processDiscoveryCall(id));
   return Response.json({ ok: true });
 }
-
