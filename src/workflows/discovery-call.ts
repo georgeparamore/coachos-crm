@@ -4,6 +4,7 @@ import {
   failDiscoveryCallProcessing,
   transcribeDiscoveryCallSegment,
 } from "@/lib/discovery-call-processing";
+import { workflowErrorMessage } from "@/lib/discovery-call-workflow-utils";
 
 async function begin(callId: string) {
   "use step";
@@ -38,7 +39,7 @@ export async function processDiscoveryCallWorkflow(callId: string) {
     await complete(callId, segments);
     return { status: "completed", segments: segments.length };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Discovery-call processing failed";
+    const message = workflowErrorMessage(error);
     await fail(callId, message);
     throw error;
   }

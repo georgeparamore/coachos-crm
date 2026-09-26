@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { logServerError } from "@/lib/log-server-error";
 import { downloadZoomRecording, getFreshZoomRecording, getZoomAccessToken } from "@/lib/zoom/client";
 import type { DiscoveryProjectBrief } from "@/lib/discovery-calls";
+import { discoveryCallSegmentCount } from "@/lib/discovery-call-workflow-utils";
 import ffmpegPath from "ffmpeg-static";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -14,7 +15,9 @@ import { promisify } from "node:util";
 // 25 MiB upload limit to newer transcription models.
 const MAX_RECORDING_BYTES = 200 * 1024 * 1024;
 const DIRECT_TRANSCRIPTION_BYTES = 24 * 1024 * 1024;
-const SEGMENT_SECONDS = 20 * 60;
+// Diarization can take several minutes for long audio. Five-minute pieces keep
+// each durable workflow step comfortably below Vercel's five-minute ceiling.
+const SEGMENT_SECONDS = 5 * 60;
 const execFileAsync = promisify(execFile);
 
 function resolveFfmpegPath() {
@@ -101,6 +104,7 @@ async function transcribeChunk(chunk: AudioChunk, apiKey: string) {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}` },
     body: form,
+    signal: AbortSignal.timeout(240_000),
   });
   const body = await result.json() as DiarizedTranscription;
   if (!result.ok || !body.text) throw new Error(body.error?.message || "OpenAI could not transcribe the recording");
@@ -187,8 +191,7 @@ export async function beginDiscoveryCallProcessing(callId: string) {
   if (call.status === "completed") return { completed: true, segmentCount: 0 };
   const attempts = (call.processing_attempts ?? 0) + 1;
   await service.from("discovery_calls").update({ status: "processing", processing_attempts: attempts, last_error: null }).eq("id", callId);
-  const isLong = Number(call.recording_file_size ?? 0) > DIRECT_TRANSCRIPTION_BYTES;
-  const segmentCount = isLong ? Math.max(1, Math.ceil(Number(call.duration_minutes ?? 1) * 60 / SEGMENT_SECONDS)) : 1;
+  const segmentCount = discoveryCallSegmentCount(call.duration_minutes, call.recording_file_size, SEGMENT_SECONDS, DIRECT_TRANSCRIPTION_BYTES);
   console.info("[discovery-call] durable processing started", { callId, attempts, segmentCount });
   return { completed: false, segmentCount };
 }
@@ -201,7 +204,8 @@ export async function transcribeDiscoveryCallSegment(callId: string, segmentInde
   let chunk: AudioChunk = { audio, extension, offsetSeconds: 0 };
   let cleanup: () => Promise<void> = async () => undefined;
 
-  if (audio.size > DIRECT_TRANSCRIPTION_BYTES) {
+  const durationSeconds = Number(call.duration_minutes ?? 0) * 60;
+  if (durationSeconds > SEGMENT_SECONDS || audio.size > DIRECT_TRANSCRIPTION_BYTES) {
     const executable = resolveFfmpegPath();
     if (!executable) throw new Error("Long-recording conversion is unavailable on this server");
     const workingDirectory = await mkdtemp(join(tmpdir(), "full-circle-segment-"));
